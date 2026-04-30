@@ -1,0 +1,6 @@
+.env
+certs/
+claude.md
+node_modules/
+*.log
+.DS_Store
