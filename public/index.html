@@ -59,6 +59,20 @@
       font-weight: 600;
     }
 
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      color: #bbb;
+      font-size: 13px;
+    }
+
+    .toggle-row input {
+      width: auto;
+      margin: 0;
+    }
+
     #btn-create {
       background: #0a84ff;
       color: #fff;
@@ -92,6 +106,15 @@
       border-radius: 20px;
       font-size: 12px;
       background: #2a2a2a;
+    }
+
+    #mode-badge {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      background: #3a2d12;
+      color: #ffd36a;
+      display: none;
     }
 
     #members-list {
@@ -208,6 +231,10 @@
     <h2>WebRTC Group Call</h2>
     <input id="inp-name" type="text" placeholder="Tên của bạn (nickname)" />
     <input id="inp-room" type="text" placeholder="Room ID (ví dụ: phong-a)" />
+    <label class="toggle-row">
+      <input id="relay-mode-toggle" type="checkbox" onchange="toggleRelayMode(this.checked)" />
+      <span>Relay mode (force TURN)</span>
+    </label>
     <div class="btn-row">
       <button id="btn-create" onclick="enterRoom('createRoom')">Tạo phòng</button>
       <button id="btn-join" onclick="enterRoom('joinRoom')">Vào phòng</button>
@@ -219,6 +246,7 @@
     <div id="room-header">
       <div id="room-info">Phòng: <strong id="display-room">-</strong> | Bạn: <strong id="display-name">-</strong></div>
       <span id="status-badge">⚪ Chờ</span>
+      <span id="mode-badge">🔄 Relay only</span>
       <button class="btn" id="btn-start" onclick="startGroupCall()">📹 Bắt đầu gọi</button>
       <button class="btn" id="btn-hangup" onclick="hangup()">📵 Dừng</button>
       <button class="btn" id="btn-leave" onclick="leaveRoom()">🚪 Rời phòng</button>
@@ -245,6 +273,8 @@
     let localStream = null;
     let isCallActive = false;
     let isJoiningRoom = false;
+    let relayModeEnabled = false;
+    let signalingQueue = Promise.resolve();
     const peerConnections = new Map(); // Map<peerName, RTCPeerConnection>
     const pendingCandidates = new Map(); // Map<peerName, RTCIceCandidateInit[]>
 
@@ -273,6 +303,19 @@
       return ICE_SERVERS;
     }
 
+    async function processSignalEvent(event) {
+      const text = event.data instanceof Blob ? await event.data.text() : event.data;
+      let msg;
+      try {
+        msg = JSON.parse(text);
+      } catch (e) {
+        log('JSON parse error: ' + e.message, 'error');
+        return;
+      }
+      log('RECV ' + msg.type + (msg.sender ? ' from=' + msg.sender : '') + (msg.target ? ' to=' + msg.target : ''), 'recv');
+      await handleSignal(msg);
+    }
+
     // ════════════════════════════════════════════════════════
     // WEBSOCKET
     // ════════════════════════════════════════════════════════
@@ -282,17 +325,10 @@
       ws.onopen = () => {log('WS connected', 'info'); callback();};
       ws.onerror = (e) => log('WS error: ' + e, 'error');
       ws.onclose = () => log('WS closed', 'info');
-      ws.onmessage = async event => {
-        const text = event.data instanceof Blob ? await event.data.text() : event.data;
-        let msg;
-        try {
-          msg = JSON.parse(text);
-        } catch (e) {
-          log('JSON parse error: ' + e.message, 'error');
-          return;
-        }
-        log('RECV ' + msg.type + (msg.sender ? ' from=' + msg.sender : '') + (msg.target ? ' to=' + msg.target : ''), 'recv');
-        handleSignal(msg);
+      ws.onmessage = event => {
+        signalingQueue = signalingQueue
+          .then(() => processSignalEvent(event))
+          .catch((e) => log('Signal handling error: ' + e.message, 'error'));
       };
     }
 
@@ -382,7 +418,7 @@
           } else {
             log('answer received but no PC for ' + sender + ', creating...', 'info');
             const iceServers = await loadIceServers();
-            const pc = new RTCPeerConnection({iceServers});
+            const pc = new RTCPeerConnection({iceServers, iceTransportPolicy: relayModeEnabled ? 'relay' : 'all'});
             await pc.setRemoteDescription(new RTCSessionDescription(answer));
             const myAnswer = await pc.createAnswer();
             await pc.setLocalDescription(myAnswer);
@@ -434,6 +470,12 @@
     function updateMembersList(members) {
       document.getElementById('members-list').textContent =
         'Thành viên (' + members.length + '): ' + members.join(', ');
+    }
+
+    function toggleRelayMode(enabled) {
+      relayModeEnabled = enabled;
+      document.getElementById('mode-badge').style.display = enabled ? 'inline-block' : 'none';
+      log('Relay mode ' + (enabled ? 'enabled' : 'disabled'), 'info');
     }
 
     function setCallControls(isInCall) {
@@ -504,8 +546,9 @@
         log('PC already exists for ' + peerName + ', reusing', 'info');
         return peerConnections.get(peerName);
       }
-      const pc = new RTCPeerConnection({iceServers});
+      const pc = new RTCPeerConnection({iceServers, iceTransportPolicy: relayModeEnabled ? 'relay' : 'all'});
       log('PC created for ' + peerName, 'info');
+      log('ICE transport policy for ' + peerName + ': ' + (relayModeEnabled ? 'relay' : 'all'), 'info');
       pc.turnFallbackTimer = setTimeout(() => {
         if (pc.connectionState !== 'connected') {
           log('P2P failed, trying TURN... (' + peerName + ')', 'error');
