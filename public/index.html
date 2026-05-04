@@ -4,768 +4,819 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WebRTC Group Call</title>
+  <title>WebRTC Mesh Group Call</title>
+
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Cấu hình màu tùy chỉnh cho Tailwind -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            dark: '#121212',
+            surface: '#1e1e1e',
+            primary: '#3b82f6', // blue-500
+            secondary: '#10b981', // emerald-500
+            danger: '#ef4444', // red-500
+          }
+        }
+      }
+    }
+  </script>
+
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    /* Custom Scrollbar cho phần Console Log */
+    #log-container::-webkit-scrollbar {
+      width: 6px;
     }
 
-    body {
-      font-family: sans-serif;
-      background: #111;
-      color: #eee;
-      padding: 16px;
+    #log-container::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.3);
     }
 
-    /* ── Lobby ── */
-    #lobby {
-      max-width: 400px;
-      margin: 60px auto;
-      background: #1e1e1e;
-      padding: 24px;
-      border-radius: 12px;
-    }
-
-    #lobby h2 {
-      margin-bottom: 20px;
-      font-size: 20px;
-    }
-
-    #lobby input {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 12px;
-      background: #2a2a2a;
-      border: 1px solid #444;
-      border-radius: 8px;
-      color: #eee;
-      font-size: 14px;
-    }
-
-    #lobby .btn-row {
-      display: flex;
-      gap: 8px;
-    }
-
-    #lobby button {
-      flex: 1;
-      padding: 10px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .toggle-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
-      color: #bbb;
-      font-size: 13px;
-    }
-
-    .toggle-row input {
-      width: auto;
-      margin: 0;
-    }
-
-    #btn-create {
-      background: #0a84ff;
-      color: #fff;
-    }
-
-    #btn-join {
-      background: #30d158;
-      color: #111;
-    }
-
-    /* ── Room ── */
-    #room {
-      display: none;
-    }
-
-    #room-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 12px;
-      flex-wrap: wrap;
-    }
-
-    #room-info {
-      font-size: 14px;
-      color: #aaa;
-    }
-
-    #status-badge {
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 12px;
-      background: #2a2a2a;
-    }
-
-    #mode-badge {
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 12px;
-      background: #3a2d12;
-      color: #ffd36a;
-      display: none;
-    }
-
-    #members-list {
-      font-size: 13px;
-      color: #aaa;
-      margin-bottom: 12px;
-    }
-
-    /* ── Buttons ── */
-    .btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
-    }
-
-    #btn-start {
-      background: #0a84ff;
-      color: #fff;
-    }
-
-    #btn-hangup {
-      background: #ff3b30;
-      color: #fff;
-      display: none;
-    }
-
-    #btn-leave {
-      background: #444;
-      color: #eee;
-    }
-
-    /* ── Video grid ── */
-    #video-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 10px;
-      margin-top: 12px;
-    }
-
-    #log-container {
-      margin-top: 12px;
-      padding: 8px;
-      background: #0a0a0a;
-      border-radius: 6px;
-      font-family: monospace;
-      font-size: 11px;
-      max-height: 150px;
-      overflow-y: auto;
-    }
-
-    .log-entry {
-      margin: 2px 0;
-    }
-
-    .log-info {
-      color: #88f;
-    }
-
-    .log-send {
-      color: #8f8;
-    }
-
-    .log-recv {
-      color: #f88;
-    }
-
-    .log-error {
-      color: #f44;
-    }
-
-    .video-wrapper {
-      position: relative;
-      background: #222;
+    #log-container::-webkit-scrollbar-thumb {
+      background-color: #4b5563;
       border-radius: 10px;
-      overflow: hidden;
-      aspect-ratio: 16/9;
     }
 
-    .video-wrapper video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .video-label {
-      position: absolute;
-      bottom: 8px;
-      left: 10px;
-      font-size: 12px;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 2px 8px;
-      border-radius: 4px;
-    }
-
-    .conn-state {
-      position: absolute;
-      top: 8px;
-      right: 10px;
-      font-size: 11px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: rgba(0, 0, 0, 0.6);
+    /* Logic Ẩn/Hiện màn hình */
+    .hidden-view {
+      display: none !important;
     }
   </style>
 </head>
 
-<body>
+<body class="bg-dark text-gray-200 font-sans min-h-screen flex items-center justify-center p-4">
 
-  <!-- ── LOBBY ── -->
-  <div id="lobby">
-    <h2>WebRTC Group Call</h2>
-    <input id="inp-name" type="text" placeholder="Tên của bạn (nickname)" />
-    <input id="inp-room" type="text" placeholder="Room ID (ví dụ: phong-a)" />
-    <label class="toggle-row">
-      <input id="relay-mode-toggle" type="checkbox" onchange="toggleRelayMode(this.checked)" />
-      <span>Relay mode (force TURN)</span>
-    </label>
-    <div class="btn-row">
-      <button id="btn-create" onclick="enterRoom('createRoom')">Tạo phòng</button>
-      <button id="btn-join" onclick="enterRoom('joinRoom')">Vào phòng</button>
+  <!-- ── MÀN HÌNH LOBBY ── -->
+  <div id="lobby" class="w-full max-w-md bg-surface p-8 rounded-2xl shadow-2xl border border-gray-800">
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-500/20 text-blue-400 mb-4">
+        <i class="fa-solid fa-video text-2xl"></i>
+      </div>
+      <h2 class="text-2xl font-bold text-white">WebRTC Group Call</h2>
+      <p class="text-gray-400 text-sm mt-2">Hệ thống gọi nhóm sử dụng Mesh Topology</p>
+    </div>
+
+    <div class="space-y-4">
+      <!-- Input Nickname -->
+      <div>
+        <label for="inp-name" class="block text-sm font-medium text-gray-400 mb-1">Nickname</label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <i class="fa-solid fa-user text-gray-500"></i>
+          </div>
+          <input id="inp-name" type="text" placeholder="Nhập tên của bạn"
+            class="w-full pl-10 pr-4 py-3 bg-dark border border-gray-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-white placeholder-gray-600">
+        </div>
+      </div>
+
+      <!-- Input Room ID -->
+      <div>
+        <label for="inp-room" class="block text-sm font-medium text-gray-400 mb-1">Room ID</label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <i class="fa-solid fa-door-open text-gray-500"></i>
+          </div>
+          <input id="inp-room" type="text" placeholder="Nhập mã phòng"
+            class="w-full pl-10 pr-4 py-3 bg-dark border border-gray-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-white placeholder-gray-600">
+        </div>
+      </div>
+
+      <!-- Relay Mode Toggle -->
+      <label
+        class="flex items-center cursor-pointer p-3 rounded-xl border border-gray-800 bg-dark/50 hover:bg-gray-800 transition">
+        <div class="relative">
+          <input id="relay-mode-toggle" type="checkbox" class="sr-only" onchange="toggleRelayMode(this.checked)">
+          <div class="block bg-gray-700 w-10 h-6 rounded-full"></div>
+          <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform"></div>
+        </div>
+        <div class="ml-3 text-sm font-medium text-gray-300">
+          Chế độ ép dùng TURN (Relay)
+        </div>
+      </label>
+
+      <!-- Nút hành động -->
+      <div class="flex gap-3 pt-4">
+        <button id="btn-create" onclick="enterRoom('createRoom')"
+          class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-4 rounded-xl transition duration-200 shadow-lg">
+          <i class="fa-solid fa-plus mr-2"></i> Tạo phòng
+        </button>
+        <button id="btn-join" onclick="enterRoom('joinRoom')"
+          class="flex-1 bg-primary hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-xl transition duration-200 shadow-lg shadow-blue-500/30">
+          <i class="fa-solid fa-right-to-bracket mr-2"></i> Vào phòng
+        </button>
+      </div>
     </div>
   </div>
 
-  <!-- ── ROOM ── -->
-  <div id="room">
-    <div id="room-header">
-      <div id="room-info">Phòng: <strong id="display-room">-</strong> | Bạn: <strong id="display-name">-</strong></div>
-      <span id="status-badge">⚪ Chờ</span>
-      <span id="mode-badge">🔄 Relay only</span>
-      <button class="btn" id="btn-start" onclick="startGroupCall()">📹 Bắt đầu gọi</button>
-      <button class="btn" id="btn-hangup" onclick="hangup()">📵 Dừng</button>
-      <button class="btn" id="btn-leave" onclick="leaveRoom()">🚪 Rời phòng</button>
+  <!-- ── MÀN HÌNH ROOM ── -->
+  <div id="room" class="hidden-view w-full max-w-7xl h-[90vh] flex flex-col md:flex-row gap-6">
+
+    <!-- MAIN CONTENT: Khu vực hiển thị Video -->
+    <div class="flex-1 flex flex-col bg-surface rounded-2xl border border-gray-800 overflow-hidden shadow-2xl relative">
+      <div class="absolute top-4 left-4 z-10">
+        <span
+          class="bg-gray-900/80 backdrop-blur text-gray-300 text-xs px-3 py-1.5 rounded-lg border border-gray-700 shadow-sm flex items-center gap-2">
+          <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+          Live
+        </span>
+      </div>
+
+      <!-- Video Grid Container: Sử dụng CSS Grid tự động chia cột -->
+      <div id="video-grid"
+        class="flex-1 w-full h-full p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-auto-fit gap-4 place-items-center auto-rows-fr bg-black">
+
+        <!-- ========================================== -->
+        <!-- MẪU HIỂN THỊ VIDEO (Dành cho JS Inject vào) -->
+        <!-- Mẫu này chỉ để hình dung, không render lúc đầu -->
+        <!-- 
+        <div class="w-full h-full relative bg-gray-900 rounded-xl overflow-hidden shadow-lg border border-gray-800 group">
+          <video class="w-full h-full object-cover" autoplay playsinline></video>
+          
+          <div class="absolute top-3 left-3 flex gap-2">
+            <span class="bg-blue-500/90 text-white text-[10px] uppercase font-bold px-2 py-1 rounded shadow backdrop-blur">
+              [TURN/Relay]
+            </span>
+          </div>
+          
+          <div class="absolute top-3 right-3">
+            <span class="bg-black/60 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase font-bold px-2 py-1 rounded shadow backdrop-blur flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> connected
+            </span>
+          </div>
+          
+          <div class="absolute bottom-0 w-full p-3 bg-gradient-to-t from-black/80 to-transparent">
+            <span class="text-white text-sm font-medium drop-shadow-md flex items-center gap-2">
+              <i class="fa-solid fa-circle-user text-gray-300"></i> Nickname
+            </span>
+          </div>
+        </div> 
+        -->
+        <!-- ========================================== -->
+
+      </div>
     </div>
-    <div id="members-list">Thành viên: đang tải...</div>
-    <div id="video-grid"></div>
-    <div id="log-container"></div>
+
+    <!-- SIDEBAR: Bảng điều khiển & Trạng thái -->
+    <div class="w-full md:w-80 flex flex-col gap-4">
+
+      <!-- Box 1: Thông tin phòng -->
+      <div class="bg-surface p-5 rounded-2xl border border-gray-800 shadow-lg flex-shrink-0">
+        <div class="flex items-center gap-3 mb-4 pb-4 border-b border-gray-800">
+          <div class="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
+            <i class="fa-solid fa-hashtag text-lg"></i>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500 font-medium">PHÒNG HIỆN TẠI</p>
+            <p id="display-room" class="text-lg font-bold text-white truncate w-40">-</p>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center mb-3">
+          <span class="text-sm text-gray-400">Bạn là:</span>
+          <span id="display-name" class="font-semibold text-white px-3 py-1 bg-gray-800 rounded-lg">-</span>
+        </div>
+
+        <div class="flex justify-between items-center">
+          <span class="text-sm text-gray-400">Chế độ TURN:</span>
+          <span id="mode-badge"
+            class="hidden text-xs font-bold text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 px-2 py-1 rounded">BẬT</span>
+        </div>
+      </div>
+
+      <!-- Box 2: Danh sách thành viên -->
+      <div class="bg-surface p-5 rounded-2xl border border-gray-800 shadow-lg flex-1 min-h-[150px] flex flex-col">
+        <h3 class="text-sm font-bold text-gray-300 mb-3 flex justify-between items-center">
+          <span>THÀNH VIÊN</span>
+          <span id="members-count" class="bg-gray-800 px-2 py-0.5 rounded text-xs">0</span>
+        </h3>
+        <div id="members-list" class="flex-1 overflow-y-auto space-y-2 text-sm text-gray-400">
+          Đang tải...
+        </div>
+      </div>
+
+      <!-- Box 3: Console Log -->
+      <div
+        class="bg-black/80 p-4 rounded-2xl border border-gray-800 shadow-lg h-48 flex flex-col font-mono relative group">
+        <div class="absolute top-2 right-2 text-[10px] text-gray-600 font-sans tracking-widest uppercase">System Log
+        </div>
+        <div id="log-container" class="flex-1 overflow-y-auto mt-2 text-[11px] leading-relaxed break-words space-y-1">
+          <!-- Log lines will be injected here -->
+        </div>
+      </div>
+
+      <!-- Box 4: Action Buttons -->
+      <div class="grid grid-cols-2 gap-3 flex-shrink-0">
+        <button id="btn-start" onclick="startGroupCall()"
+          class="col-span-2 bg-secondary hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl transition duration-200 shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-video"></i> Bắt đầu gọi
+        </button>
+
+        <button id="btn-hangup" onclick="hangup()"
+          class="hidden-view col-span-2 bg-danger hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl transition duration-200 shadow-lg shadow-red-500/20 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-phone-slash"></i> Tắt máy
+        </button>
+
+        <button id="btn-leave" onclick="leaveRoom()"
+          class="col-span-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold py-3 px-4 rounded-xl transition duration-200 border border-gray-700 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Rời phòng
+        </button>
+      </div>
+
+    </div>
   </div>
 
-  <script>
-
-    const SIGNALING_URL = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}`;
-
-    const ICE_SERVERS = [
-      {urls: 'stun:stun.l.google.com:19302'},
-    ];
-
-    // ════════════════════════════════════════════════════════
-    // STATE
-    // ════════════════════════════════════════════════════════
-    let myName = '';
-    let myRoom = '';
-    let ws = null;
-    let localStream = null;
-    let isCallActive = false;
-    let isJoiningRoom = false;
-    let relayModeEnabled = false;
-    let signalingQueue = Promise.resolve();
-    const peerConnections = new Map(); // Map<peerName, RTCPeerConnection>
-    const pendingCandidates = new Map(); // Map<peerName, RTCIceCandidateInit[]>
-
-    // ════════════════════════════════════════════════════════
-    // LOGGING
-    // ════════════════════════════════════════════════════════
-    function log(msg, type = 'info') {
-      const el = document.getElementById('log-container');
-      const entry = document.createElement('div');
-      entry.className = 'log-entry log-' + type;
-      const time = new Date().toLocaleTimeString();
-      entry.textContent = time + ' ' + msg;
-      el.insertBefore(entry, el.firstChild);
-      el.scrollTop = 0;
+  <!-- Custom CSS for Relay Toggle Switch (để hoạt động với Tailwind) -->
+  <style>
+    input:checked~.block {
+      background-color: #3b82f6;
+      /* bg-primary */
     }
 
-    // ════════════════════════════════════════════════════════
-    // ICE SERVERS — fetch động từ Metered
-    // ════════════════════════════════════════════════════════
-    async function loadIceServers() {
-      // Bỏ comment và thay URL nếu dùng Metered.ca:
-      try {
-        const res = await fetch('https://hoangnhoo.metered.live/api/v1/turn/credentials?apiKey=a6f17146267176a67db33ed6fe9424175a41');
-        return await res.json();
-      } catch {return ICE_SERVERS;}
-      return ICE_SERVERS;
+    input:checked~.dot {
+      transform: translateX(100%);
     }
 
-    async function processSignalEvent(event) {
-      const text = event.data instanceof Blob ? await event.data.text() : event.data;
-      let msg;
+    /* Auto-fit lưới để hỗ trợ từ 1 tới nhiều video */
+    .grid-cols-auto-fit {
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+  </style>
+
+</body>
+
+</html>
+
+<script>
+  const SIGNALING_URL = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}`;
+
+  const ICE_SERVERS = [
+    { urls: 'stun:stun.l.google.com:19302' },
+  ];
+
+  // ════════════════════════════════════════════════════════
+  // STATE
+  // ════════════════════════════════════════════════════════
+  let myName = '';
+  let myRoom = '';
+  let ws = null;
+  let localStream = null;
+  let isCallActive = false;
+  let isJoiningRoom = false;
+  let relayModeEnabled = false;
+  let signalingQueue = Promise.resolve();
+  let currentRoomMembers = []; // THÊM MỚI: Biến lưu danh sách để không phải cạo dữ liệu từ HTML
+
+  const peerConnections = new Map(); // Map<peerName, RTCPeerConnection>
+  const pendingCandidates = new Map(); // Map<peerName, RTCIceCandidateInit[]>
+
+  // ════════════════════════════════════════════════════════
+  // LOGGING
+  // ════════════════════════════════════════════════════════
+  function log(msg, type = 'info') {
+    const el = document.getElementById('log-container');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry log-' + type;
+    const time = new Date().toLocaleTimeString();
+    entry.textContent = time + ' ' + msg;
+    el.insertBefore(entry, el.firstChild);
+    el.scrollTop = 0;
+  }
+
+  // ════════════════════════════════════════════════════════
+  // ICE SERVERS — fetch động từ Metered
+  // ════════════════════════════════════════════════════════
+  async function loadIceServers() {
+    try {
+      const res = await fetch('https://hoangnhoo.metered.live/api/v1/turn/credentials?apiKey=a6f17146267176a67db33ed6fe9424175a41');
+      return await res.json();
+    } catch { return ICE_SERVERS; }
+  }
+
+  async function processSignalEvent(event) {
+    const text = event.data instanceof Blob ? await event.data.text() : event.data;
+    let msg;
+    try {
+      msg = JSON.parse(text);
+    } catch (e) {
+      log('JSON parse error: ' + e.message, 'error');
+      return;
+    }
+    log('RECV ' + msg.type + (msg.sender ? ' from=' + msg.sender : '') + (msg.target ? ' to=' + msg.target : ''), 'recv');
+    await handleSignal(msg);
+  }
+
+  // ════════════════════════════════════════════════════════
+  // WEBSOCKET
+  // ════════════════════════════════════════════════════════
+  function connectWS(callback) {
+    ws = new WebSocket(SIGNALING_URL);
+    ws.onopen = () => { log('WS connected', 'info'); callback(); };
+    ws.onerror = (e) => log('WS error: ' + e, 'error');
+    ws.onclose = () => log('WS closed', 'info');
+    ws.onmessage = event => {
+      signalingQueue = signalingQueue
+        .then(() => processSignalEvent(event))
+        .catch((e) => log('Signal handling error: ' + e.message, 'error'));
+    };
+  }
+
+  function send(obj) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(obj));
+      log('SEND ' + obj.type + (obj.target ? ' to=' + obj.target : ''), 'send');
+    }
+  }
+
+  function queueCandidate(peerName, candidate) {
+    if (!pendingCandidates.has(peerName)) {
+      pendingCandidates.set(peerName, []);
+    }
+    pendingCandidates.get(peerName).push(candidate);
+    log('Queued candidate for ' + peerName, 'info');
+  }
+
+  async function flushPendingCandidates(peerName) {
+    if (!peerConnections.has(peerName)) return;
+    const pc = peerConnections.get(peerName);
+    if (!pc.remoteDescription) return;
+    const queued = pendingCandidates.get(peerName) || [];
+    if (!queued.length) return;
+
+    for (const candidate of queued) {
       try {
-        msg = JSON.parse(text);
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
       } catch (e) {
-        log('JSON parse error: ' + e.message, 'error');
-        return;
-      }
-      log('RECV ' + msg.type + (msg.sender ? ' from=' + msg.sender : '') + (msg.target ? ' to=' + msg.target : ''), 'recv');
-      await handleSignal(msg);
-    }
-
-    // ════════════════════════════════════════════════════════
-    // WEBSOCKET
-    // ════════════════════════════════════════════════════════
-    function connectWS(callback) {
-      ws = new WebSocket(SIGNALING_URL);
-      // log trên Browser
-      ws.onopen = () => {log('WS connected', 'info'); callback();};
-      ws.onerror = (e) => log('WS error: ' + e, 'error');
-      ws.onclose = () => log('WS closed', 'info');
-      ws.onmessage = event => {
-        signalingQueue = signalingQueue
-          .then(() => processSignalEvent(event))
-          .catch((e) => log('Signal handling error: ' + e.message, 'error'));
-      };
-    }
-
-    function send(obj) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(obj));
-        log('SEND ' + obj.type + (obj.target ? ' to=' + obj.target : ''), 'send');
+        console.warn('flush addIceCandidate error:', e);
       }
     }
 
-    function queueCandidate(peerName, candidate) {
-      if (!pendingCandidates.has(peerName)) {
-        pendingCandidates.set(peerName, []);
-      }
-      pendingCandidates.get(peerName).push(candidate);
-      log('Queued candidate for ' + peerName, 'info');
-    }
+    pendingCandidates.delete(peerName);
+    log('Flushed queued candidates for ' + peerName, 'info');
+  }
 
-    async function flushPendingCandidates(peerName) {
-      if (!peerConnections.has(peerName)) return;
-      const pc = peerConnections.get(peerName);
-      if (!pc.remoteDescription) return;
-      const queued = pendingCandidates.get(peerName) || [];
-      if (!queued.length) return;
+  // ════════════════════════════════════════════════════════
+  // SIGNAL HANDLER
+  // ════════════════════════════════════════════════════════
+  async function handleSignal(msg) {
+    const { type, sender, members, offer, answer, candidate, message } = msg;
 
-      for (const candidate of queued) {
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(candidate));
-        } catch (e) {
-          console.warn('flush addIceCandidate error:', e);
+    switch (type) {
+      case 'error':
+        isJoiningRoom = false;
+        log('ERROR: ' + message, 'error');
+        if (ws && ws.readyState === WebSocket.OPEN && document.getElementById('room').classList.contains('hidden-view')) {
+          ws.close();
         }
+        alert(message);
+        break;
+
+      case 'roomJoined':
+        isJoiningRoom = false;
+        document.getElementById('display-name').textContent = myName;
+        document.getElementById('display-room').textContent = myRoom;
+        document.getElementById('lobby').classList.add('hidden-view');
+        const roomEl = document.getElementById('room');
+        roomEl.classList.remove('hidden-view');
+        roomEl.classList.add('flex');
+
+        log('Joined room ' + myRoom, 'info');
+        break;
+
+      case 'roomMembers': {
+        updateMembersList(members);
+        log('roomMembers: ' + members.join(', '), 'info');
+        break;
       }
 
-      pendingCandidates.delete(peerName);
-      log('Flushed queued candidates for ' + peerName, 'info');
-    }
+      case 'memberLeft':
+        closePeer(sender);
+        break;
 
+      case 'offer':
+        await handleOffer(sender, offer);
+        break;
 
-    // ════════════════════════════════════════════════════════
-    // SIGNAL HANDLER
-    // ════════════════════════════════════════════════════════
-    async function handleSignal(msg) {
-      const {type, sender, members, offer, answer, candidate, message} = msg;
-
-      switch (type) {
-
-        case 'error':
-          isJoiningRoom = false;
-          log('ERROR: ' + message, 'error');
-          if (ws && ws.readyState === WebSocket.OPEN && document.getElementById('room').style.display !== 'block') {
-            ws.close();
-          }
-          alert(message);
-          break;
-
-        case 'roomJoined':
-          isJoiningRoom = false;
-          document.getElementById('display-name').textContent = myName;
-          document.getElementById('display-room').textContent = myRoom;
-          document.getElementById('lobby').style.display = 'none';
-          document.getElementById('room').style.display = 'block';
-          log('Joined room ' + myRoom, 'info');
-          break;
-
-        case 'roomMembers': {
-          updateMembersList(members);
-          log('roomMembers: ' + members.join(', '), 'info');
-          break;
-        }
-
-        case 'memberLeft':
-          closePeer(sender);
-          break;
-
-        case 'offer':
-          await handleOffer(sender, offer);
-          break;
-
-        case 'answer':
-          if (peerConnections.has(sender)) {
-            const pc = peerConnections.get(sender);
-            await pc.setRemoteDescription(new RTCSessionDescription(answer));
-            await flushPendingCandidates(sender);
-            log('answer set for ' + sender, 'info');
-            isCallActive = true;
-            setCallControls(true);
-          } else {
-            log('answer received but no PC for ' + sender + ', creating...', 'info');
-            const iceServers = await loadIceServers();
-            const pc = new RTCPeerConnection({iceServers, iceTransportPolicy: relayModeEnabled ? 'relay' : 'all'});
-            await pc.setRemoteDescription(new RTCSessionDescription(answer));
-            const myAnswer = await pc.createAnswer();
-            await pc.setLocalDescription(myAnswer);
-            peerConnections.set(sender, pc);
-            send({type: 'answer', roomId: myRoom, sender: myName, target: sender, answer: myAnswer});
-            isCallActive = true;
-            setCallControls(true);
-          }
-          break;
-
-        case 'candidate':
-          if (peerConnections.has(sender) && peerConnections.get(sender).remoteDescription) {
-            try {
-              await peerConnections.get(sender).addIceCandidate(new RTCIceCandidate(candidate));
-            } catch (e) {console.warn('addIceCandidate error:', e);}
-          } else {
-            queueCandidate(sender, candidate);
-          }
-          break;
-
-        case 'endCall':
-          hangup({notifyPeers: false, skipConfirm: true});
-          break;
-      }
-    }
-
-    // ════════════════════════════════════════════════════════
-    // LOBBY → ROOM
-    // ════════════════════════════════════════════════════════
-    function enterRoom(action) {
-      const name = document.getElementById('inp-name').value.trim();
-      const room = document.getElementById('inp-room').value.trim();
-      if (!name || !room) {alert('Nhập đủ tên và room ID'); return;}
-      if (isJoiningRoom) return;
-
-      myName = name;
-      myRoom = room;
-      isJoiningRoom = true;
-
-      connectWS(() => {
-        send({type: 'register', name: myName});
-        send({type: action || 'joinRoom', roomId: myRoom, name: myName});
-      });
-    }
-
-    // ════════════════════════════════════════════════════════
-    // MEMBERS LIST
-    // ════════════════════════════════════════════════════════
-    function updateMembersList(members) {
-      document.getElementById('members-list').textContent =
-        'Thành viên (' + members.length + '): ' + members.join(', ');
-    }
-
-    function toggleRelayMode(enabled) {
-      relayModeEnabled = enabled;
-      document.getElementById('mode-badge').style.display = enabled ? 'inline-block' : 'none';
-      log('Relay mode ' + (enabled ? 'enabled' : 'disabled'), 'info');
-    }
-
-    function setCallControls(isInCall) {
-      document.getElementById('btn-start').style.display = isInCall ? 'none' : 'inline-block';
-      document.getElementById('btn-hangup').style.display = isInCall ? 'inline-block' : 'none';
-    }
-
-    // ════════════════════════════════════════════════════════
-    // VIDEO: lấy local stream
-    // ════════════════════════════════════════════════════════
-    async function getLocalStream() {
-      if (localStream) return localStream;
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
-        addVideoElement('local', myName + ' (bạn)', localStream);
-      } catch (e) {
-        log('getUserMedia error: ' + e.message, 'error');
-        alert('Không lấy được camera/mic: ' + e.message);
-        throw e;
-      }
-      return localStream;
-    }
-
-    function addVideoElement(peerId, label, stream) {
-      if (document.getElementById('vid-' + peerId)) return;
-      const wrap = document.createElement('div');
-      wrap.className = 'video-wrapper';
-      wrap.id = 'vid-' + peerId;
-
-      const vid = document.createElement('video');
-      vid.autoplay = true;
-      vid.playsInline = true;
-      if (peerId === 'local') vid.muted = true;
-      vid.srcObject = stream;
-
-      const lbl = document.createElement('div');
-      lbl.className = 'video-label';
-      lbl.textContent = label;
-
-      const state = document.createElement('div');
-      state.className = 'conn-state';
-      state.id = 'state-' + peerId;
-      state.textContent = peerId === 'local' ? '🟢 local' : '⚪ connecting';
-
-      wrap.appendChild(vid);
-      wrap.appendChild(lbl);
-      wrap.appendChild(state);
-      document.getElementById('video-grid').appendChild(wrap);
-    }
-
-    function removeVideoElement(peerId) {
-      const el = document.getElementById('vid-' + peerId);
-      if (el) el.remove();
-    }
-
-    function updateConnState(peerId, state) {
-      const el = document.getElementById('state-' + peerId);
-      if (!el) return;
-      const icons = {connected: '🟢', connecting: '🟡', disconnected: '🔴', failed: '🔴', new: '⚪'};
-      el.textContent = (icons[state] || '⚪') + ' ' + state;
-    }
-
-    // ════════════════════════════════════════════════════════
-    // PEER CONNECTION FACTORY
-    // ════════════════════════════════════════════════════════
-    async function createPC(peerName, iceServers) {
-      if (peerConnections.has(peerName)) {
-        log('PC already exists for ' + peerName + ', reusing', 'info');
-        return peerConnections.get(peerName);
-      }
-      const pc = new RTCPeerConnection({iceServers, iceTransportPolicy: relayModeEnabled ? 'relay' : 'all'});
-      log('PC created for ' + peerName, 'info');
-      log('ICE transport policy for ' + peerName + ': ' + (relayModeEnabled ? 'relay' : 'all'), 'info');
-      pc.turnFallbackTimer = setTimeout(() => {
-        if (pc.connectionState !== 'connected') {
-          log('P2P failed, trying TURN... (' + peerName + ')', 'error');
-        }
-      }, 12000);
-
-      // Thêm local tracks
-      const stream = await getLocalStream();
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-      // Nhận remote stream
-      const remoteStream = new MediaStream();
-      pc.ontrack = (e) => {
-        e.streams[0].getTracks().forEach(t => remoteStream.addTrack(t));
-        addVideoElement(peerName, peerName, remoteStream);
-        log('ontrack from ' + peerName, 'info');
-      };
-
-      // ICE candidate
-      pc.onicecandidate = (e) => {
-        if (e.candidate) {
-          log('ICE cand for ' + peerName + ': ' + e.candidate.candidate, 'info');
-          send({type: 'candidate', roomId: myRoom, sender: myName, target: peerName, candidate: e.candidate});
-        }
-      };
-
-      // Connection state
-      pc.onconnectionstatechange = () => {
-        console.log(`[${peerName}] connectionState:`, pc.connectionState);
-        log('PC state ' + peerName + ': ' + pc.connectionState, pc.connectionState === 'connected' ? 'info' : 'error');
-        if (pc.connectionState === 'connected' && pc.turnFallbackTimer) {
-          clearTimeout(pc.turnFallbackTimer);
-          pc.turnFallbackTimer = null;
-        }
-        if (pc.connectionState === 'connected') {
+      case 'answer':
+        if (peerConnections.has(sender)) {
+          const pc = peerConnections.get(sender);
+          await pc.setRemoteDescription(new RTCSessionDescription(answer));
+          await flushPendingCandidates(sender);
+          log('answer set for ' + sender, 'info');
+          isCallActive = true;
+          setCallControls(true);
+        } else {
+          log('answer received but no PC for ' + sender + ', creating...', 'info');
+          const iceServers = await loadIceServers();
+          const pc = new RTCPeerConnection({ iceServers, iceTransportPolicy: relayModeEnabled ? 'relay' : 'all' });
+          await pc.setRemoteDescription(new RTCSessionDescription(answer));
+          const myAnswer = await pc.createAnswer();
+          await pc.setLocalDescription(myAnswer);
+          peerConnections.set(sender, pc);
+          send({ type: 'answer', roomId: myRoom, sender: myName, target: sender, answer: myAnswer });
           isCallActive = true;
           setCallControls(true);
         }
-        updateConnState(peerName, pc.connectionState);
-        updateStatusBadge();
+        break;
 
-        if (pc.connectionState === 'connected') {
-          logStats(pc, peerName);
+      case 'candidate':
+        if (peerConnections.has(sender) && peerConnections.get(sender).remoteDescription) {
+          try {
+            await peerConnections.get(sender).addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (e) { console.warn('addIceCandidate error:', e); }
+        } else {
+          queueCandidate(sender, candidate);
         }
-      };
+        break;
 
-      pc.oniceconnectionstatechange = () => {
-        console.log(`[${peerName}] iceConnectionState:`, pc.iceConnectionState);
-        log('ICE state ' + peerName + ': ' + pc.iceConnectionState, pc.iceConnectionState === 'connected' ? 'info' : (pc.iceConnectionState === 'failed' ? 'error' : 'info'));
-        if (pc.iceConnectionState === 'failed') {
-          log('P2P failed, trying TURN... (' + peerName + ')', 'error');
-        }
-      };
+      case 'endCall':
+        hangup({ notifyPeers: false, skipConfirm: true });
+        break;
+    }
+  }
 
-      peerConnections.set(peerName, pc);
-      return pc;
+  // ════════════════════════════════════════════════════════
+  // LOBBY → ROOM
+  // ════════════════════════════════════════════════════════
+  function enterRoom(action) {
+    const name = document.getElementById('inp-name').value.trim();
+    const room = document.getElementById('inp-room').value.trim();
+    if (!name || !room) { alert('Nhập đủ tên và room ID'); return; }
+    if (isJoiningRoom) return;
+
+    myName = name;
+    myRoom = room;
+    isJoiningRoom = true;
+
+    connectWS(() => {
+      send({ type: 'register', name: myName });
+      send({ type: action || 'joinRoom', roomId: myRoom, name: myName });
+    });
+  }
+
+  // ════════════════════════════════════════════════════════
+  // MEMBERS LIST & CONTROLS
+  // ════════════════════════════════════════════════════════
+  function updateMembersList(members) {
+    currentRoomMembers = members; // Lưu state để không bị lỗi regex khi ấn Bắt đầu gọi
+    document.getElementById('members-count').textContent = members.length;
+    document.getElementById('members-list').innerHTML = members.map(m =>
+      `<div class="flex items-center gap-2 py-1"><i class="fa-solid fa-user-circle text-gray-500"></i> ${m}</div>`
+    ).join('');
+  }
+
+  function toggleRelayMode(enabled) {
+    relayModeEnabled = enabled;
+    const badge = document.getElementById('mode-badge');
+    if (enabled) badge.classList.remove('hidden');
+    else badge.classList.add('hidden');
+    log('Relay mode ' + (enabled ? 'enabled' : 'disabled'), 'info');
+  }
+
+  function setCallControls(isInCall) {
+    const btnStart = document.getElementById('btn-start');
+    const btnHangup = document.getElementById('btn-hangup');
+    if (isInCall) {
+      btnStart.classList.add('hidden-view');
+      btnHangup.classList.remove('hidden-view');
+    } else {
+      btnStart.classList.remove('hidden-view');
+      btnHangup.classList.add('hidden-view');
+    }
+  }
+
+  // ════════════════════════════════════════════════════════
+  // VIDEO: lấy local stream & Add to DOM
+  // ════════════════════════════════════════════════════════
+  async function getLocalStream() {
+    if (localStream) return localStream;
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      addVideoElement('local', myName + ' (bạn)', localStream);
+    } catch (e) {
+      log('getUserMedia error: ' + e.message, 'error');
+      alert('Không lấy được camera/mic: ' + e.message);
+      throw e;
+    }
+    return localStream;
+  }
+
+  function addVideoElement(peerId, label, stream) {
+    if (document.getElementById('wrap-' + peerId)) return;
+
+    const wrap = document.createElement('div');
+    wrap.id = 'wrap-' + peerId;
+    // UPDATE UI: Add Tailwind Classes for responsive grid
+    wrap.className = 'w-full h-full relative bg-gray-900 rounded-xl overflow-hidden shadow-lg border border-gray-800 group min-h-[200px] flex items-center justify-center';
+
+    wrap.innerHTML = `
+        <video id="vid-${peerId}" class="w-full h-full object-cover" autoplay playsinline ${peerId === 'local' ? 'muted' : ''}></video>
+        
+        <div class="absolute top-3 left-3 flex gap-2">
+          <span id="cand-${peerId}" class="hidden-view"></span>
+        </div>
+        
+        <div class="absolute top-3 right-3">
+          <span id="state-${peerId}" class="bg-black/60 text-gray-400 border border-gray-500/30 text-[10px] uppercase font-bold px-2 py-1 rounded shadow backdrop-blur flex items-center gap-1.5">
+            <span id="dot-${peerId}" class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse"></span> 
+            <span id="text-${peerId}">connecting</span>
+          </span>
+        </div>
+        
+        <div class="absolute bottom-0 w-full p-3 bg-gradient-to-t from-black/80 to-transparent">
+          <span class="text-white text-sm font-medium drop-shadow-md flex items-center gap-2">
+            <i class="fa-solid fa-circle-user text-gray-300"></i> ${label}
+          </span>
+        </div>
+      `;
+
+    document.getElementById('video-grid').appendChild(wrap);
+    document.getElementById('vid-' + peerId).srcObject = stream;
+  }
+
+  function removeVideoElement(peerId) {
+    const el = document.getElementById('wrap-' + peerId); // UPDATE UI: Remove wrap
+    if (el) el.remove();
+  }
+
+  function updateConnState(peerId, state) {
+    // Sử dụng Tailwind classes thay vì emoji thuần
+    const stateContainer = document.getElementById('state-' + peerId);
+    const dotEl = document.getElementById('dot-' + peerId);
+    const textEl = document.getElementById('text-' + peerId);
+
+    if (!stateContainer || !dotEl || !textEl) return;
+    textEl.textContent = state;
+
+    if (state === 'connected') {
+      stateContainer.className = 'bg-black/60 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase font-bold px-2 py-1 rounded shadow backdrop-blur flex items-center gap-1.5 absolute top-3 right-3';
+      dotEl.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400';
+    } else if (state === 'failed' || state === 'disconnected') {
+      stateContainer.className = 'bg-black/60 text-red-400 border border-red-500/30 text-[10px] uppercase font-bold px-2 py-1 rounded shadow backdrop-blur flex items-center gap-1.5 absolute top-3 right-3';
+      dotEl.className = 'w-1.5 h-1.5 rounded-full bg-red-400';
+    } else {
+      stateContainer.className = 'bg-black/60 text-yellow-400 border border-yellow-500/30 text-[10px] uppercase font-bold px-2 py-1 rounded shadow backdrop-blur flex items-center gap-1.5 absolute top-3 right-3';
+      dotEl.className = 'w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse';
+    }
+  }
+
+  // ════════════════════════════════════════════════════════
+  // PEER CONNECTION FACTORY
+  // ════════════════════════════════════════════════════════
+  async function createPC(peerName, iceServers) {
+    if (peerConnections.has(peerName)) {
+      log('PC already exists for ' + peerName + ', reusing', 'info');
+      return peerConnections.get(peerName);
+    }
+    const pc = new RTCPeerConnection({ iceServers, iceTransportPolicy: relayModeEnabled ? 'relay' : 'all' });
+    log('PC created for ' + peerName, 'info');
+    log('ICE transport policy for ' + peerName + ': ' + (relayModeEnabled ? 'relay' : 'all'), 'info');
+
+    pc.turnFallbackTimer = setTimeout(() => {
+      if (pc.connectionState !== 'connected') {
+        log('P2P failed, trying TURN... (' + peerName + ')', 'error');
+      }
+    }, 12000);
+
+    // Thêm local tracks
+    const stream = await getLocalStream();
+    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+    // Nhận remote stream
+    const remoteStream = new MediaStream();
+    pc.ontrack = (e) => {
+      e.streams[0].getTracks().forEach(t => remoteStream.addTrack(t));
+      addVideoElement(peerName, peerName, remoteStream);
+      log('ontrack from ' + peerName, 'info');
+    };
+
+    // ICE candidate
+    pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        log('ICE cand for ' + peerName + ': ' + e.candidate.candidate, 'info');
+        send({ type: 'candidate', roomId: myRoom, sender: myName, target: peerName, candidate: e.candidate });
+      }
+    };
+
+    // Connection state
+    pc.onconnectionstatechange = () => {
+      console.log(`[${peerName}] connectionState:`, pc.connectionState);
+      log('PC state ' + peerName + ': ' + pc.connectionState, pc.connectionState === 'connected' ? 'info' : 'error');
+      if (pc.connectionState === 'connected' && pc.turnFallbackTimer) {
+        clearTimeout(pc.turnFallbackTimer);
+        pc.turnFallbackTimer = null;
+      }
+      if (pc.connectionState === 'connected') {
+        isCallActive = true;
+        setCallControls(true);
+      }
+      updateConnState(peerName, pc.connectionState);
+      updateStatusBadge();
+
+      if (pc.connectionState === 'connected') {
+        logStats(pc, peerName);
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log(`[${peerName}] iceConnectionState:`, pc.iceConnectionState);
+      log('ICE state ' + peerName + ': ' + pc.iceConnectionState, pc.iceConnectionState === 'connected' ? 'info' : (pc.iceConnectionState === 'failed' ? 'error' : 'info'));
+      if (pc.iceConnectionState === 'failed') {
+        log('P2P failed, trying TURN... (' + peerName + ')', 'error');
+      }
+    };
+
+    peerConnections.set(peerName, pc);
+    return pc;
+  }
+
+  // ════════════════════════════════════════════════════════
+  // GROUP CALL: START (mesh — tôi offer đến mọi người)
+  // ════════════════════════════════════════════════════════
+  async function startGroupCall() {
+    isCallActive = true;
+    setCallControls(true);
+    log('=== START GROUP CALL ' + new Date().toLocaleTimeString() + ' ===', 'info');
+    const iceServers = await loadIceServers();
+    log('ICE servers: ' + JSON.stringify(iceServers), 'info');
+    await getLocalStream();
+
+    const others = currentRoomMembers.filter(m => m !== myName);
+
+    log('Will call: ' + others.join(', '), 'info');
+
+    for (const peer of others) {
+      if (peerConnections.has(peer)) {
+        log('PC already exists for ' + peer, 'info');
+        continue;
+      }
+      const pc = await createPC(peer, iceServers);
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      log('Sending offer to ' + peer, 'send');
+      send({ type: 'offer', roomId: myRoom, sender: myName, target: peer, offer });
+    }
+  }
+
+  // ════════════════════════════════════════════════════════
+  // OFFER RECEIVED (từ peer khác)
+  // ════════════════════════════════════════════════════════
+  async function handleOffer(sender, offer) {
+    isCallActive = true;
+    setCallControls(true);
+    log('Handling offer from ' + sender, 'recv');
+    const iceServers = await loadIceServers();
+    const pc = peerConnections.has(sender)
+      ? peerConnections.get(sender)
+      : await createPC(sender, iceServers);
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    await flushPendingCandidates(sender);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    log('Sending answer to ' + sender, 'send');
+    send({ type: 'answer', roomId: myRoom, sender: myName, target: sender, answer });
+  }
+
+  // ════════════════════════════════════════════════════════
+  // HANGUP
+  // ════════════════════════════════════════════════════════
+  function hangup(options = {}) {
+    const { notifyPeers = true, skipConfirm = false, logEvent = true } = options;
+    const membersEl = document.getElementById('members-list');
+    let count = 0;
+
+    if (membersEl) {
+      const memberText = membersEl.textContent;
+      const memberCountMatch = memberText.match(/\d+/);
+      count = memberCountMatch ? parseInt(memberCountMatch[0]) : 0;
     }
 
-    // ════════════════════════════════════════════════════════
-    // GROUP CALL: START (mesh — tôi offer đến mọi người)
-    // ════════════════════════════════════════════════════════
-    async function startGroupCall() {
-      isCallActive = true;
-      setCallControls(true);
-      log('=== START GROUP CALL ' + new Date().toLocaleTimeString() + ' ===', 'info');
-      const iceServers = await loadIceServers();
-      log('ICE servers: ' + JSON.stringify(iceServers), 'info');
-      await getLocalStream();
-
-      const memberText = document.getElementById('members-list').textContent;
-      const allMembers = memberText.replace(/^.*?:\s*/, '').split(', ').map(s => s.trim()).filter(Boolean);
-      const others = allMembers.filter(m => m !== myName && m !== myName + ' (bạn)');
-
-      log('Will call: ' + others.join(', '), 'info');
-
-      for (const peer of others) {
-        if (peerConnections.has(peer)) {
-          log('PC already exists for ' + peer, 'info');
-          continue;
-        }
-        const pc = await createPC(peer, iceServers);
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        log('Sending offer to ' + peer, 'send');
-        send({type: 'offer', roomId: myRoom, sender: myName, target: peer, offer});
+    if (!skipConfirm && count > 1) {
+      if (!confirm('Có ' + count + ' người trong phòng. Bạn chắc chắn muốn dừng cuộc gọi không?')) {
+        return false;
       }
     }
 
-    // ════════════════════════════════════════════════════════
-    // OFFER RECEIVED (từ peer khác)
-    // ════════════════════════════════════════════════════════
-    async function handleOffer(sender, offer) {
-      isCallActive = true;
-      setCallControls(true);
-      log('Handling offer from ' + sender, 'recv');
-      const iceServers = await loadIceServers();
-      const pc = peerConnections.has(sender)
-        ? peerConnections.get(sender)
-        : await createPC(sender, iceServers);
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      await flushPendingCandidates(sender);
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      log('Sending answer to ' + sender, 'send');
-      send({type: 'answer', roomId: myRoom, sender: myName, target: sender, answer});
+    const hadActiveCall = isCallActive || peerConnections.size > 0 || localStream;
+    isCallActive = false;
+    if (hadActiveCall && logEvent) {
+      log('=== END CALL ' + new Date().toLocaleTimeString() + ' ===', 'info');
     }
+    if (notifyPeers) {
+      send({ type: 'endCall', roomId: myRoom, sender: myName });
+    }
+    closeAllPeers();
+    stopLocalStream();
 
-    // ════════════════════════════════════════════════════════
-    // HANGUP
-    // ════════════════════════════════════════════════════════
-    function hangup(options = {}) {
-      const {notifyPeers = true, skipConfirm = false, logEvent = true} = options;
-      const memberText = document.getElementById('members-list').textContent;
-      const memberCount = memberText.match(/Thành viên \((\d+)\)/);
-      const count = memberCount ? parseInt(memberCount[1]) : 0;
+    setCallControls(false);
+    const badge = document.getElementById('status-badge');
+    if (badge) badge.textContent = '⚪ Chờ';
 
-      if (!skipConfirm && count > 1) {
-        if (!confirm('Có ' + count + ' người trong phòng. Bạn chắc chắn muốn dừng cuộc gọi không?')) {
-          return false;
-        }
+    return true;
+  }
+
+  function closeAllPeers() {
+    peerConnections.forEach((pc, name) => closePeer(name));
+  }
+
+  function closePeer(name) {
+    if (peerConnections.has(name)) {
+      const pc = peerConnections.get(name);
+      if (pc.turnFallbackTimer) {
+        clearTimeout(pc.turnFallbackTimer);
       }
+      pc.close();
+      peerConnections.delete(name);
+    }
+    pendingCandidates.delete(name);
+    removeVideoElement(name);
+  }
 
-      const hadActiveCall = isCallActive || peerConnections.size > 0 || localStream;
-      isCallActive = false;
-      if (hadActiveCall && logEvent) {
-        log('=== END CALL ' + new Date().toLocaleTimeString() + ' ===', 'info');
+  function stopLocalStream() {
+    if (localStream) {
+      localStream.getTracks().forEach(t => t.stop());
+      localStream = null;
+    }
+    removeVideoElement('local');
+  }
+
+  // ════════════════════════════════════════════════════════
+  // LEAVE ROOM
+  // ════════════════════════════════════════════════════════
+  function leaveRoom() {
+    const didHangup = hangup({ notifyPeers: false, skipConfirm: true, logEvent: false });
+    if (!didHangup) {
+      return;
+    }
+    isJoiningRoom = false;
+    send({ type: 'leaveRoom', roomId: myRoom, sender: myName });
+
+    // LƯU Ý KỸ THUẬT: Đã gỡ bỏ ws.close() ở đây để tránh đứt kết nối khi tạo phòng mới.
+
+    myName = ''; myRoom = '';
+
+    // UPDATE UI: Chuyển classList
+    const lobbyEl = document.getElementById('lobby');
+    const roomEl = document.getElementById('room');
+    if (roomEl && lobbyEl) {
+      roomEl.classList.add('hidden-view');
+      roomEl.classList.remove('flex');
+      lobbyEl.classList.remove('hidden-view');
+    }
+  }
+
+  // ════════════════════════════════════════════════════════
+  // STATUS BADGE
+  // ════════════════════════════════════════════════════════
+  function updateStatusBadge() {
+    const states = [...peerConnections.values()].map(pc => pc.connectionState);
+    const badge = document.getElementById('status-badge');
+    if (states.includes('connected')) { badge.textContent = '🟢 Connected'; }
+    else if (states.includes('connecting')) { badge.textContent = '🟡 Connecting...'; }
+    else if (states.includes('failed')) { badge.textContent = '🔴 Failed'; }
+    else { badge.textContent = '⚪ Chờ'; }
+  }
+
+  // ════════════════════════════════════════════════════════
+  // STATS: log loại candidate (host / srflx / relay)
+  // ════════════════════════════════════════════════════════
+  async function logStats(pc, peerName) {
+    const stats = await pc.getStats();
+    let localCandType = 'unknown';
+
+    stats.forEach(report => {
+      if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+        const local = stats.get(report.localCandidateId);
+        if (local) localCandType = local.candidateType; // host / srflx / relay
       }
-      if (notifyPeers) {
-        send({type: 'endCall', roomId: myRoom, sender: myName});
-      }
-      closeAllPeers();
-      stopLocalStream();
+    });
 
-      setCallControls(false);
-      document.getElementById('status-badge').textContent = '⚪ Chờ';
-      return true;
-    }
+    console.log(`[STATS] ${peerName} — candidate type: ${localCandType}`);
 
-    function closeAllPeers() {
-      peerConnections.forEach((pc, name) => closePeer(name));
-    }
-
-    function closePeer(name) {
-      if (peerConnections.has(name)) {
-        const pc = peerConnections.get(name);
-        if (pc.turnFallbackTimer) {
-          clearTimeout(pc.turnFallbackTimer);
-        }
-        pc.close();
-        peerConnections.delete(name);
-      }
-      pendingCandidates.delete(name);
-      removeVideoElement(name);
-    }
-
-    function stopLocalStream() {
-      if (localStream) {
-        localStream.getTracks().forEach(t => t.stop());
-        localStream = null;
-      }
-      removeVideoElement('local');
-    }
-
-    // ════════════════════════════════════════════════════════
-    // LEAVE ROOM
-    // ════════════════════════════════════════════════════════
-    function leaveRoom() {
-      const didHangup = hangup({notifyPeers: false, skipConfirm: true, logEvent: false});
-      if (!didHangup) {
-        return;
-      }
-      isJoiningRoom = false;
-      send({type: 'leaveRoom', roomId: myRoom, sender: myName});
-      ws.close();
-
-      myName = ''; myRoom = '';
-      document.getElementById('room').style.display = 'none';
-      document.getElementById('lobby').style.display = 'block';
-    }
-
-    // ════════════════════════════════════════════════════════
-    // STATUS BADGE
-    // ════════════════════════════════════════════════════════
-    function updateStatusBadge() {
-      const states = [...peerConnections.values()].map(pc => pc.connectionState);
-      const badge = document.getElementById('status-badge');
-      if (states.includes('connected')) {badge.textContent = '🟢 Connected';}
-      else if (states.includes('connecting')) {badge.textContent = '🟡 Connecting...';}
-      else if (states.includes('failed')) {badge.textContent = '🔴 Failed';}
-      else {badge.textContent = '⚪ Chờ';}
-    }
-
-    // ════════════════════════════════════════════════════════
-    // STATS: log loại candidate (host / srflx / relay)
-    // ════════════════════════════════════════════════════════
-    async function logStats(pc, peerName) {
-      const stats = await pc.getStats();
-      let localCandType = 'unknown';
-
-      stats.forEach(report => {
-        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
-          const local = stats.get(report.localCandidateId);
-          if (local) localCandType = local.candidateType; // host / srflx / relay
-        }
-      });
-
-      console.log(`[STATS] ${peerName} — candidate type: ${localCandType}`);
-
-      // Hiển thị trên UI
-      const stateEl = document.getElementById('state-' + peerName);
-      if (stateEl) {
-        const label = localCandType === 'relay' ? '🔄 relay (TURN)' :
-          localCandType === 'srflx' ? '🌐 srflx (STUN)' : '💻 host (LAN)';
-        stateEl.textContent = '🟢 ' + label;
+    // Hiển thị lên Badge Video
+    const candBadge = document.getElementById('cand-' + peerName);
+    if (candBadge) {
+      candBadge.classList.remove('hidden-view');
+      if (localCandType === 'relay') {
+        candBadge.textContent = '🔄 TURN/Relay';
+        candBadge.className = 'bg-yellow-500/90 text-white text-[10px] uppercase font-bold px-2 py-1 rounded shadow backdrop-blur absolute top-3 left-3';
+      } else if (localCandType === 'srflx') {
+        candBadge.textContent = '🌐 STUN/srflx';
+        candBadge.className = 'bg-blue-500/90 text-white text-[10px] uppercase font-bold px-2 py-1 rounded shadow backdrop-blur absolute top-3 left-3';
+      } else {
+        candBadge.textContent = '💻 LAN/Host';
+        candBadge.className = 'bg-gray-600/90 text-white text-[10px] uppercase font-bold px-2 py-1 rounded shadow backdrop-blur absolute top-3 left-3';
       }
     }
-  </script>
+  }
+</script>
 </body>
 
 </html>

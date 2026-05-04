@@ -4,3 +4,10 @@ claude.md
 node_modules/
 *.log
 .DS_Store
+.vscode/
+.idea/
+.aux
+.fdb_latexmk
+.fls
+.log
+.tex
