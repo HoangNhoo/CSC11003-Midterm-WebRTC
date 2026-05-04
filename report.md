@@ -1,22 +1,24 @@
-# Bao cao WebRTC TURN + Room + Group Call
+# Báo cáo WebRTC TURN + Room + Group Call
 
-## 1. Kien truc he thong
+## 1. Mô tả kiến trúc hệ thống
 
-He thong gom 3 thanh phan chinh:
-- `server/server.js`: signaling server dung `Node.js + HTTPS + WebSocket`
-- `public/index.html`: client HTML/CSS/JS, lay camera/mic bang `getUserMedia()` va tao `RTCPeerConnection`
-- TURN server: dung dich vu Metered de cap ICE credentials dong
+Hệ thống gồm 3 thành phần chính:
 
-Luong tong quat:
-1. Client mo WebSocket den signaling server.
-2. Client dang ky nickname va tao/vao room.
-3. Server quan ly room bang `Map<roomId, Map<name, WebSocket>>`.
-4. Khi bat dau group call, moi client tao `n-1` peer connections theo mo hinh mesh.
-5. WebRTC tu thuong luong ICE voi STUN/TURN de tim duong ket noi phu hop.
+- **Signaling Server** (`server/server.js`): Node.js + HTTPS + WebSocket.
+- **Client** (`public/index.html`): HTML/CSS/JS, dùng `getUserMedia()` và `RTCPeerConnection`.
+- **TURN Server**: coturn self-host trên Azure VM.
+
+Luồng tổng quát:
+
+1. Client mở WebSocket đến signaling server.
+2. Client đăng ký nickname và tạo/vào room.
+3. Server quản lý room bằng `Map<roomId, Map<name, WebSocket>>`.
+4. Khi bắt đầu gọi nhóm, mỗi client tạo `n-1` peer connections (mesh topology).
+5. WebRTC dùng ICE (STUN/TURN) để tìm đường media tối ưu.
 
 ## 2. Signaling protocol
 
-### Client -> Server
+### 2.1 Client -> Server
 
 ```json
 { "type": "register", "name": "alice" }
@@ -29,132 +31,139 @@ Luong tong quat:
 { "type": "endCall", "roomId": "room-1", "sender": "alice" }
 ```
 
-### Server -> Client
+### 2.2 Server -> Client
 
 ```json
 { "type": "roomJoined", "roomId": "room-1", "name": "alice" }
 { "type": "roomMembers", "roomId": "room-1", "members": ["alice", "bob"] }
 { "type": "memberLeft", "roomId": "room-1", "sender": "bob" }
-{ "type": "error", "message": "Phong da ton tai" }
+{ "type": "error", "message": "Phòng đã tồn tại" }
 ```
 
-Ghi chu:
-- `roomJoined` duoc them de client chi chuyen UI sang man hinh room sau khi server xac nhan thanh cong.
-- `memberLeft` dung truong `sender` de dong nhat voi `offer/answer/candidate/endCall`.
+Ghi chú:
 
-## 3. Thiet ke room va group call
+- `roomJoined` được thêm để client chỉ chuyển UI sang room sau khi server xác nhận thành công.
+- `memberLeft` dùng trường `sender` để đồng nhất với `offer/answer/candidate/endCall`.
 
-### Room
+## 3. Thiết kế room và group call
 
-- Nguoi dung co 2 thao tac: `Tao phong` va `Vao phong`.
-- `createRoom` se fail neu `roomId` da ton tai.
-- `joinRoom` se fail neu phong chua duoc tao truoc.
-- Nickname phai duy nhat trong tung room; neu trung ten, server tra `error`.
-- Moi thay doi thanh vien deu broadcast lai `roomMembers` cho ca phong.
+### 3.1 Room management
 
-### Group call mesh
+- Người dùng có 2 thao tác: **Tạo phòng** và **Vào phòng**.
+- `createRoom` fail nếu room đã tồn tại.
+- `joinRoom` fail nếu room chưa tồn tại.
+- Nickname phải duy nhất trong từng room.
+- Mỗi thay đổi thành viên đều broadcast lại `roomMembers`.
 
-- Khi nhan `Bat dau goi`, client lay danh sach thanh vien trong room.
-- Moi peer khac se duoc tao 1 `RTCPeerConnection` rieng.
-- Local stream duoc add vao tung peer connection bang `addTrack`.
-- Moi remote peer se co 1 o video rieng trong `#video-grid`.
+### 3.2 Group call mesh
 
-## 4. STUN/TURN va fallback
+- Khi bấm **Bắt đầu gọi**, client tạo `RTCPeerConnection` đến từng peer còn lại.
+- Local stream được add vào mỗi peer connection bằng `addTrack`.
+- Mỗi remote peer có một video element riêng trên grid.
 
-### ICE servers
+### 3.3 Rời phòng và dừng cuộc gọi
 
-Client co STUN mac dinh:
+- `leaveRoom`: chỉ người rời thoát phòng, không kết thúc cuộc gọi của cả room.
+- `endCall`: broadcast kết thúc cuộc gọi cho các peer còn lại.
 
-```javascript
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' }
-];
+## 4. TURN (coturn self-host trên Azure VM)
+
+### 4.1 Cấu hình
+
+Thông tin trong `.env`:
+
+```env
+TURN_HOST=20.2.88.224
+TURN_USERNAME=...
+TURN_CREDENTIAL=...
 ```
 
-Client goi endpoint noi bo tren signaling server de lay TURN credentials tu `.env`:
+Server expose endpoint:
 
-```javascript
-const res = await fetch('/api/ice-servers');
-```
+- `GET /api/ice-servers`
 
-Bo ICE servers tra ve tu server can bao gom cac dang sau:
-- `turn:HOST:PORT?transport=udp`
-- `turn:HOST:PORT?transport=tcp`
+Response ICE servers:
 
-### Fallback
+- `stun:${TURN_HOST}:3478`
+- `turn:${TURN_HOST}:3478?transport=udp`
+- `turn:${TURN_HOST}:3478?transport=tcp`
 
-- Moi peer connection duoc dat timer 12 giay.
-- Neu sau 12 giay van chua `connected`, UI log: `P2P failed, trying TURN...`.
-- Ngoai ra, khi `iceConnectionState === 'failed'`, client cung log thong bao nay.
-- Danh sach `iceServers` da chua TURN nen browser se tiep tuc thu relay candidate trong qua trinh ICE.
+### 4.2 Fallback logic
 
-## 5. Trang thai va thong ke
+- Mỗi peer connection đặt timer 12 giây.
+- Nếu chưa `connected`, UI log: `P2P failed, trying TURN...`.
+- Khi `iceConnectionState === failed`, tiếp tục log thông báo fallback.
 
-Client hien thi:
-- `connectionState`: `new`, `connecting`, `connected`, `disconnected`, `failed`
-- `iceConnectionState`: log tren UI va console
-- loai candidate thanh cong qua `getStats()`: `host`, `srflx`, `relay`
+### 4.3 Relay mode
 
-UI log tren man hinh gom:
-- thoi diem bat dau cuoc goi
-- thoi diem ket thuc cuoc goi
-- message signaling gui/nhan
-- candidate type sau khi ket noi thanh cong
+Client có toggle **Relay mode (force TURN)**:
 
-## 6. Xu ly roi phong va hangup
+- bật: `iceTransportPolicy = relay`
+- tắt: `iceTransportPolicy = all`
 
-- Khi mot thanh vien roi phong, server gui `memberLeft` va cap nhat `roomMembers`.
-- Client nhan `memberLeft` se dong peer connection tuong ung va xoa video.
-- Nhan `Dung` se dong toan bo peer connections, dung local stream, reset UI, va cho phep goi lai.
-- Neu dang co nhieu nguoi trong phong, nut `Dung` hien hop thoai xac nhan truoc khi ket thuc.
+Chế độ này dùng để demo/minh chứng TURN rõ ràng trong báo cáo.
 
-## 7. Kiem thu (bo sung log/anh that khi nop)
+## 5. Trạng thái và thống kê
 
-### 7.1 LAN
+Client ghi log:
 
-Can bo sung khi test that:
-- [ ] Anh chup room 2 nguoi cung LAN
-- [ ] Log candidate type = `host`
+- thời điểm bắt đầu / kết thúc cuộc gọi
+- signaling messages gửi/nhận
+- `connectionState`
+- `iceConnectionState`
+- candidate type từ `getStats()` (`host`, `srflx`, `relay`)
+
+## 6. Kết quả kiểm thử (bổ sung ảnh/log thật trước khi nộp)
+
+### 6.1 Test LAN
+
+Checklist:
+
+- [ ] Ảnh chụp 2 thiết bị cùng LAN
 - [ ] Log `connected`
+- [ ] Candidate type thường là `host` hoặc `srflx`
 
-### 7.2 Khac mang / 4G
+### 6.2 Test khác mạng / 4G
 
-Can bo sung khi test that:
-- [ ] Anh chup 2 thiet bi khac mang
-- [ ] Log `P2P failed, trying TURN...` neu xuat hien
-- [ ] Log candidate type = `relay` hoac `srflx`
+Checklist:
 
-### 7.3 Group call 3-4 nguoi
+- [ ] Ảnh chụp 2 thiết bị khác mạng
+- [ ] Log `connectionState`, `iceConnectionState`
+- [ ] Candidate type `srflx` hoặc `relay`
 
-Can bo sung khi test that:
-- [ ] Anh chup grid 3-4 video
+### 6.3 Test nhóm 3-4 người
+
+Checklist:
+
+- [ ] Ảnh chụp grid đủ 3-4 video
 - [ ] Log join/leave room realtime
-- [ ] Log hangup xong goi lai duoc
+- [ ] Dừng xong gọi lại được
 
-## 8. Han che va huong phat trien
+## 7. Hạn chế và hướng phát triển
 
-Han che hien tai:
-- Mesh topology ton bang thong theo `O(n^2)` khi tang so nguoi
-- Chua co persistence cho room khi server restart
-- CREDENTIAL TURN dang duoc lay truc tiep tu client, chua dua vao server/env an toan hon
+Hạn chế hiện tại:
 
-Huong phat trien:
-- Tach JS client ra file rieng (`public/app.js`)
-- Dua TURN credentials ve server-side config
-- Chuyen tu mesh sang SFU neu muon ho tro nhieu nguoi hon
-- Them retry/reconnect tot hon khi WebSocket bi ngat
+- Mesh topology tăng tải theo `O(n^2)` khi số người tăng.
+- Chưa có persistence room khi server restart.
+- Chưa có cơ chế auth tài khoản.
 
-## 9. Cach chay
+Hướng phát triển:
+
+- Tách JS client ra file riêng (`public/app.js`).
+- Chuyển từ mesh sang SFU khi cần scale nhiều người.
+- Thêm reconnect strategy tốt hơn khi WS mất kết nối.
+
+## 8. Cách chạy nhanh
 
 ```bash
 npm install
 node server/server.js
 ```
 
-Mo trinh duyet tai:
+Mở:
 
 ```text
 https://localhost:3000
 ```
 
-Neu dung self-signed certificate, can chap nhan canh bao HTTPS tren trinh duyet.
+Nếu dùng self-signed certificate, chấp nhận cảnh báo HTTPS trên trình duyệt.
