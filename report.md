@@ -71,16 +71,15 @@ const ICE_SERVERS = [
 ];
 ```
 
-Client dong thoi goi API Metered de lay TURN credentials:
+Client goi endpoint noi bo tren signaling server de lay TURN credentials tu `.env`:
 
 ```javascript
-const res = await fetch('https://hoangnhoo.metered.live/api/v1/turn/credentials?apiKey=YOUR_API_KEY');
+const res = await fetch('/api/ice-servers');
 ```
 
-Bo ICE servers tra ve tu Metered can bao gom cac dang sau:
+Bo ICE servers tra ve tu server can bao gom cac dang sau:
 - `turn:HOST:PORT?transport=udp`
 - `turn:HOST:PORT?transport=tcp`
-- `turns:HOST:PORT?transport=tcp`
 
 ### Fallback
 

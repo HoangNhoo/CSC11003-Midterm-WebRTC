@@ -323,12 +323,17 @@
   }
 
   // ════════════════════════════════════════════════════════
-  // ICE SERVERS — fetch động từ Metered
+  // ICE SERVERS — fetch từ server (.env)
   // ════════════════════════════════════════════════════════
   async function loadIceServers() {
     try {
-      const res = await fetch('https://hoangnhoo.metered.live/api/v1/turn/credentials?apiKey=a6f17146267176a67db33ed6fe9424175a41');
-      return await res.json();
+      const res = await fetch('/api/ice-servers');
+      if (!res.ok) throw new Error('ICE endpoint failed: ' + res.status);
+      const data = await res.json();
+      if (!data.iceServers || !Array.isArray(data.iceServers) || data.iceServers.length === 0) {
+        throw new Error('No iceServers returned from server');
+      }
+      return data.iceServers;
     } catch { return ICE_SERVERS; }
   }
 
