@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 let sslOptions;
 try {
   sslOptions = {
-    key:  fs.readFileSync(path.join(__dirname, '../certs/key.pem')),
+    key: fs.readFileSync(path.join(__dirname, '../certs/key.pem')),
     cert: fs.readFileSync(path.join(__dirname, '../certs/cert.pem')),
   };
 } catch (e) {
@@ -63,21 +63,21 @@ function leaveRoom(roomId, name) {
     return;
   }
   // Thông báo cho các thành viên còn lại
-  broadcast(roomId, { type: 'memberLeft', roomId, name });
+  broadcast(roomId, { type: 'memberLeft', roomId, sender: name });
   broadcast(roomId, { type: 'roomMembers', roomId, members: getRoomMembers(roomId) });
 }
 
 // ── Connection handler ────────────────────────────────────────────────
-wss.on('connection', (ws) => {
+wss.on('connection', ws => {
   let currentName = null;
   let currentRoom = null;
 
-  console.log('Client kết nối');
+  console.log('Client mới kết nối');
 
-  ws.on('message', (raw) => {
+  ws.on('message', message => {
     let msg;
     try {
-      msg = JSON.parse(raw);
+      msg = JSON.parse(message);
     } catch {
       return;
     }
@@ -91,20 +91,55 @@ wss.on('connection', (ws) => {
         console.log(`Đăng ký: ${name}`);
         break;
 
-      case 'createRoom':
-      case 'joinRoom': {
-        // Nếu đang ở phòng khác thì rời trước
+      case 'createRoom': {
         if (currentRoom) leaveRoom(currentRoom, currentName);
 
         currentName = name || currentName;
-        currentRoom = roomId;
 
-        if (!rooms.has(roomId)) rooms.set(roomId, new Map());
+        if (rooms.has(roomId)) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Phòng đã tồn tại' }));
+          break;
+        }
+
+        currentRoom = roomId;
+        rooms.set(roomId, new Map());
+        rooms.get(roomId).set(currentName, ws);
+
+        console.log(`Tạo phòng ${roomId} bởi ${currentName}`);
+
+        ws.send(JSON.stringify({ type: 'roomJoined', roomId, name: currentName }));
+
+        const members = getRoomMembers(roomId);
+        rooms.get(roomId).forEach((clientWs) => {
+          if (clientWs.readyState === WebSocket.OPEN) {
+            clientWs.send(JSON.stringify({ type: 'roomMembers', roomId, members }));
+          }
+        });
+        break;
+      }
+
+      case 'joinRoom': {
+        if (currentRoom) leaveRoom(currentRoom, currentName);
+
+        currentName = name || currentName;
+
+        if (!rooms.has(roomId)) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Phòng chưa tồn tại' }));
+          break;
+        }
+
+        if (rooms.get(roomId).has(currentName)) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Tên đã được sử dụng trong phòng. Vui lòng chọn tên khác.' }));
+          break;
+        }
+
+        currentRoom = roomId;
         rooms.get(roomId).set(currentName, ws);
 
         console.log(`${currentName} vào phòng ${roomId}`);
 
-        // Gửi danh sách thành viên cho tất cả trong phòng
+        ws.send(JSON.stringify({ type: 'roomJoined', roomId, name: currentName }));
+
         const members = getRoomMembers(roomId);
         rooms.get(roomId).forEach((clientWs) => {
           if (clientWs.readyState === WebSocket.OPEN) {

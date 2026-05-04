@@ -34,18 +34,7 @@ node server/server.js
 
 Chấp nhận cảnh báo "Not secure" trên trình duyệt.
 
-### Cách 2: HTTP + ngrok (cho test qua Internet)
-
-```bash
-# Terminal 1: Chạy server HTTP
-node server/server-http.js
-
-# Terminal 2: Chạy ngrok
-ngrok http 3000
-# Dùng URL HTTPS mà ngrok cấp
-```
-
-### Cách 3: Deploy lên Cloud
+### Cách 2: Deploy lên Cloud
 
 #### Heroku
 
@@ -63,12 +52,17 @@ git push heroku master
 
 ## Cách sử dụng
 
-### 1. Vào phòng
+### 1. Tạo hoặc vào phòng
 
 1. Mở ứng dụng trên trình duyệt (PC hoặc điện thoại)
 2. Nhập **Tên** (nickname)
 3. Nhập **Room ID** (ví dụ: `phong-1`)
-4. Bấm **Vào phòng**
+4. Nếu phòng chưa có, bấm **Tạo phòng**
+5. Nếu phòng đã có, bấm **Vào phòng**
+
+Lưu ý:
+- Nút **Vào phòng** sẽ báo lỗi nếu phòng chưa được tạo trước
+- Nickname phải là duy nhất trong từng phòng
 
 ### 2. Gọi video nhóm
 
@@ -109,6 +103,7 @@ const res = await fetch('https://[your-app].metered.live/api/v1/turn/credentials
 - ✓ Tạo/Join phòng
 - ✓ Gọi video nhóm (mesh)
 - ✓ STUN/TURN tự động
+- ✓ Thông báo `P2P failed, trying TURN...` sau 12 giây nếu chưa connected
 - ✓ Hiển thị trạng thái kết nối
 - ✓ Log ICE candidate (host/srflx/relay)
 - ✓ Cảnh báo trước khi dừng (nếu >1 người)
@@ -117,15 +112,17 @@ const res = await fetch('https://[your-app].metered.live/api/v1/turn/credentials
 
 ### Test 2 người
 
-1. A và B cùng vào phòng `test-1`
-2. A bấm "Bắt đầu gọi"
-3. Cả hai thấy video nhau
+1. A tạo phòng `test-1`
+2. B vào phòng `test-1`
+3. A bấm "Bắt đầu gọi"
+4. Cả hai thấy video nhau
 
 ### Test nhóm (3-4 người)
 
-1. A, B, C cùng vào phòng `test-2`
-2. Một người bấm "Bắt đầu gọi"
-3. Tất cả thấy video của nhau
+1. A tạo phòng `test-2`
+2. B, C, D vào cùng phòng
+3. Một người bấm "Bắt đầu gọi"
+4. Tất cả thấy video của nhau
 
 ## Kiến trúc
 
