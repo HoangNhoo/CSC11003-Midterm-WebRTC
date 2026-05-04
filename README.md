@@ -86,17 +86,25 @@ Bấm **Rời phòng** để thoát
 
 ### TURN Server
 
-Sử dụng **Metered.ca** (đã cấu hình sẵn trong code):
+Sử dụng **coturn self-host** (đọc từ `.env` trên server):
 
-- Tự động fetch credentials từ API
-- Hỗ trợ: UDP, TCP, TLS
+- `TURN_HOST`
+- `TURN_USERNAME`
+- `TURN_CREDENTIAL`
+- Client sẽ fetch ICE config từ endpoint nội bộ: `/api/ice-servers`
 
-**Tự đổi TURN server:**
-Chỉnh URL trong `public/index.html`, hàm `loadIceServers()`:
+Ví dụ `.env`:
 
-```javascript
-const res = await fetch('https://[your-app].metered.live/api/v1/turn/credentials?apiKey=YOUR_API_KEY');
+```env
+TURN_HOST=20.2.88.224
+TURN_USERNAME=your_turn_user
+TURN_CREDENTIAL=your_turn_password
 ```
+
+Server hiện trả về:
+- `stun:${TURN_HOST}:3478`
+- `turn:${TURN_HOST}:3478?transport=udp`
+- `turn:${TURN_HOST}:3478?transport=tcp`
 
 ## Tính năng
 

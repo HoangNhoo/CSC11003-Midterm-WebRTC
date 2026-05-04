@@ -7,6 +7,9 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const TURN_HOST = process.env.TURN_HOST;
+const TURN_USERNAME = process.env.TURN_USERNAME;
+const TURN_CREDENTIAL = process.env.TURN_CREDENTIAL;
 
 // ── SSL ──────────────────────────────────────────────────────────────
 let sslOptions;
@@ -22,6 +25,24 @@ try {
 
 // ── Static files ──────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, '../public')));
+
+app.get('/api/ice-servers', (_req, res) => {
+  if (!TURN_HOST || !TURN_USERNAME || !TURN_CREDENTIAL) {
+    return res.json({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+      ],
+    });
+  }
+
+  return res.json({
+    iceServers: [
+      { urls: `stun:${TURN_HOST}:3478` },
+      { urls: `turn:${TURN_HOST}:3478?transport=udp`, username: TURN_USERNAME, credential: TURN_CREDENTIAL },
+      { urls: `turn:${TURN_HOST}:3478?transport=tcp`, username: TURN_USERNAME, credential: TURN_CREDENTIAL },
+    ],
+  });
+});
 
 // ── HTTPS server ──────────────────────────────────────────────────────
 const server = https.createServer(sslOptions, app);
