@@ -250,6 +250,38 @@
     }
   </style>
 
+  <style>
+    #video-grid {
+      display: grid;
+      /* Khoảng cách giữa các ô video */
+      gap: 1rem;
+      padding: 1rem;
+      width: 100%;
+      height: 100%;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+      grid-auto-rows: min-content;
+      align-content: center;
+      justify-content: center;
+      overflow-y: auto;
+    }
+
+    .video-wrapper {
+      position: relative;
+      width: 100%;
+      background: #1a1a1a;
+      border-radius: 0.75rem;
+      overflow: hidden;
+      border: 1px solid #333;
+      aspect-ratio: 16 / 9;
+      transition: transform 0.2s ease;
+    }
+
+    .video-wrapper video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  </style>
 </body>
 
 </html>
@@ -538,7 +570,8 @@
       `;
 
     document.getElementById('video-grid').appendChild(wrap);
-    document.getElementById('vid-' + peerId).srcObject = stream;
+    const videoEl = document.getElementById('vid-' + peerId);
+    videoEl.srcObject = stream;
   }
 
   function removeVideoElement(peerId) {
