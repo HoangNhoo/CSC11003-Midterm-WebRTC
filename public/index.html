@@ -436,6 +436,9 @@
       case 'roomMembers': {
         updateMembersList(members);
         log('roomMembers: ' + members.join(', '), 'info');
+        if (isCallActive) {
+          await ensureMeshConnections();
+        }
         break;
       }
 
@@ -724,19 +727,30 @@
     isCallActive = true;
     setCallControls(true);
     log('=== START GROUP CALL ' + new Date().toLocaleTimeString() + ' ===', 'info');
+    await getLocalStream();
+    await ensureMeshConnections();
+  }
+
+  function shouldOfferTo(peerName) {
+    return myName.localeCompare(peerName) < 0;
+  }
+
+  async function ensureMeshConnections() {
     const iceServers = await loadIceServers();
     log('ICE servers: ' + JSON.stringify(iceServers), 'info');
-    await getLocalStream();
-
     const others = currentRoomMembers.filter(m => m !== myName);
-
-    log('Will call: ' + others.join(', '), 'info');
+    log('Will ensure mesh with: ' + others.join(', '), 'info');
 
     for (const peer of others) {
       if (peerConnections.has(peer)) {
-        log('PC already exists for ' + peer, 'info');
         continue;
       }
+
+      if (!shouldOfferTo(peer)) {
+        log('Waiting offer from ' + peer + ' (deterministic offer rule)', 'info');
+        continue;
+      }
+
       const pc = await createPC(peer, iceServers);
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
