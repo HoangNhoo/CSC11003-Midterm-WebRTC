@@ -117,119 +117,102 @@
   </div>
 
   <!-- ── MÀN HÌNH ROOM ── -->
-  <div id="room" class="hidden-view w-full max-w-7xl h-[90vh] flex flex-col md:flex-row gap-6">
+  <div id="room" class="hidden-view w-full max-w-7xl min-h-screen md:h-[90vh] flex flex-col md:flex-row gap-4">
 
-    <!-- MAIN CONTENT: Khu vực hiển thị Video -->
-    <div class="flex-1 flex flex-col bg-surface rounded-2xl border border-gray-800 overflow-hidden shadow-2xl relative">
-      <div class="absolute top-4 left-4 z-10">
+    <!-- MAIN CONTENT: Khu vực hiển thị Video (Trái) -->
+    <div
+      class="flex-[2] flex flex-col bg-surface rounded-2xl border border-gray-800 overflow-hidden shadow-2xl relative">
+      <!-- Overlay: Status Bar -->
+      <div class="absolute top-4 left-4 z-10 flex gap-2">
         <span
-          class="bg-gray-900/80 backdrop-blur text-gray-300 text-xs px-3 py-1.5 rounded-lg border border-gray-700 shadow-sm flex items-center gap-2">
+          class="bg-black/60 backdrop-blur-md text-gray-200 text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-lg border border-gray-700 shadow-sm flex items-center gap-2">
           <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-          Live
+          Live Connection
+        </span>
+        <span id="status-badge"
+          class="bg-blue-500/20 backdrop-blur-md text-blue-400 text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-lg border border-blue-500/30 shadow-sm flex items-center gap-2">
+          ⚪ Waiting for peers...
         </span>
       </div>
 
-      <!-- Video Grid Container: Sử dụng CSS Grid tự động chia cột -->
-      <div id="video-grid"
-        class="flex-1 w-full h-full p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-auto-fit gap-4 place-items-center auto-rows-fr bg-black">
-
-        <!-- ========================================== -->
-        <!-- MẪU HIỂN THỊ VIDEO (Dành cho JS Inject vào) -->
-        <!-- Mẫu này chỉ để hình dung, không render lúc đầu -->
-        <!-- 
-        <div class="w-full h-full relative bg-gray-900 rounded-xl overflow-hidden shadow-lg border border-gray-800 group">
-          <video class="w-full h-full object-cover" autoplay playsinline></video>
-          
-          <div class="absolute top-3 left-3 flex gap-2">
-            <span class="bg-blue-500/90 text-white text-[10px] uppercase font-bold px-2 py-1 rounded shadow backdrop-blur">
-              [TURN/Relay]
-            </span>
-          </div>
-          
-          <div class="absolute top-3 right-3">
-            <span class="bg-black/60 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase font-bold px-2 py-1 rounded shadow backdrop-blur flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> connected
-            </span>
-          </div>
-          
-          <div class="absolute bottom-0 w-full p-3 bg-gradient-to-t from-black/80 to-transparent">
-            <span class="text-white text-sm font-medium drop-shadow-md flex items-center gap-2">
-              <i class="fa-solid fa-circle-user text-gray-300"></i> Nickname
-            </span>
-          </div>
-        </div> 
-        -->
-        <!-- ========================================== -->
-
+      <!-- Video Grid -->
+      <div id="video-grid" class="flex-1 w-full h-full p-6 grid gap-4 bg-[#0a0a0a] overflow-y-auto content-center">
+        <!-- Videos will be injected here -->
       </div>
     </div>
 
-    <!-- SIDEBAR: Bảng điều khiển & Trạng thái -->
-    <div class="w-full md:w-80 flex flex-col gap-4">
+    <!-- SIDEBAR: Thông tin & Console (Phải) -->
+    <div class="flex-1 flex flex-col gap-4 min-w-[320px]">
 
-      <!-- Box 1: Thông tin phòng -->
-      <div class="bg-surface p-5 rounded-2xl border border-gray-800 shadow-lg flex-shrink-0">
-        <div class="flex items-center gap-3 mb-4 pb-4 border-b border-gray-800">
-          <div class="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
-            <i class="fa-solid fa-hashtag text-lg"></i>
-          </div>
+      <!-- Box 1: Thông tin người dùng & Phòng -->
+      <div class="bg-surface p-5 rounded-2xl border border-gray-800 shadow-lg border-t-2 border-t-blue-500">
+        <div class="flex justify-between items-start mb-4">
           <div>
-            <p class="text-xs text-gray-500 font-medium">PHÒNG HIỆN TẠI</p>
-            <p id="display-room" class="text-lg font-bold text-white truncate w-40">-</p>
+            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Room Session</p>
+            <h3 id="display-room" class="text-xl font-black text-white truncate">-</h3>
+          </div>
+          <div class="text-right">
+            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Your Identity</p>
+            <p id="display-name" class="text-sm font-bold text-blue-400">-</p>
           </div>
         </div>
 
-        <div class="flex justify-between items-center mb-3">
-          <span class="text-sm text-gray-400">Bạn là:</span>
-          <span id="display-name" class="font-semibold text-white px-3 py-1 bg-gray-800 rounded-lg">-</span>
-        </div>
-
-        <div class="flex justify-between items-center">
-          <span class="text-sm text-gray-400">Chế độ TURN:</span>
+        <div class="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-gray-700/50">
+          <span class="text-xs text-gray-400">ICE Relay Mode:</span>
           <span id="mode-badge"
-            class="hidden text-xs font-bold text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 px-2 py-1 rounded">BẬT</span>
+            class="hidden px-2 py-1 bg-yellow-500/10 border border-yellow-500/40 text-yellow-500 text-[10px] font-bold rounded-md">FORCE
+            TURN</span>
         </div>
       </div>
 
-      <!-- Box 2: Danh sách thành viên -->
-      <div class="bg-surface p-5 rounded-2xl border border-gray-800 shadow-lg flex-1 min-h-[150px] flex flex-col">
-        <h3 class="text-sm font-bold text-gray-300 mb-3 flex justify-between items-center">
-          <span>THÀNH VIÊN</span>
-          <span id="members-count" class="bg-gray-800 px-2 py-0.5 rounded text-xs">0</span>
-        </h3>
-        <div id="members-list" class="flex-1 overflow-y-auto space-y-2 text-sm text-gray-400">
-          Đang tải...
-        </div>
-      </div>
-
-      <!-- Box 3: Console Log -->
+      <!-- Box 2: Console Log (Thiết kế dạng Terminal) -->
       <div
-        class="bg-black/80 p-4 rounded-2xl border border-gray-800 shadow-lg h-48 flex flex-col font-mono relative group">
-        <div class="absolute top-2 right-2 text-[10px] text-gray-600 font-sans tracking-widest uppercase">System Log
+        class="h-64 md:flex-1 bg-[#0d0d0d] rounded-2xl border border-gray-800 shadow-inner flex flex-col overflow-hidden group">
+        <div class="px-4 py-2 bg-[#1a1a1a] border-b border-gray-800 flex justify-between items-center">
+          <div class="flex gap-1.5">
+            <div class="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-green-500/50"></div>
+          </div>
+          <span class="text-[13px] font-mono text-gray-500 tracking-tighter uppercase font-bold italic">Console
+            Log</span>
         </div>
-        <div id="log-container" class="flex-1 overflow-y-auto mt-2 text-[11px] leading-relaxed break-words space-y-1">
-          <!-- Log lines will be injected here -->
+
+        <!-- Container log to, rõ ràng -->
+        <div id="log-container"
+          class="flex-1 p-4 overflow-y-auto font-mono text-[12px] leading-relaxed selection:bg-blue-500/30">
+          <!-- Log lines go here -->
         </div>
       </div>
 
-      <!-- Box 4: Action Buttons -->
-      <div class="grid grid-cols-2 gap-3 flex-shrink-0">
-        <button id="btn-start" onclick="startGroupCall()"
-          class="col-span-2 bg-secondary hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl transition duration-200 shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2">
-          <i class="fa-solid fa-video"></i> Bắt đầu gọi
-        </button>
+      <!-- Box 3: Thành viên & Nút bấm -->
+      <div class="bg-surface p-5 rounded-2xl border border-gray-800 shadow-lg space-y-4">
+        <div class="flex items-center justify-between border-b border-gray-800 pb-2">
+          <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Active Members</span>
+          <span id="members-count" class="text-xs font-mono bg-gray-800 px-2 py-0.5 rounded text-blue-400">0</span>
+        </div>
 
-        <button id="btn-hangup" onclick="hangup()"
-          class="hidden-view col-span-2 bg-danger hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl transition duration-200 shadow-lg shadow-red-500/20 flex items-center justify-center gap-2">
-          <i class="fa-solid fa-phone-slash"></i> Tắt máy
-        </button>
+        <div id="members-list" class="max-h-24 overflow-y-auto space-y-2 text-xs text-gray-300 custom-scrollbar">
+          <!-- Members injected here -->
+        </div>
 
-        <button id="btn-leave" onclick="leaveRoom()"
-          class="col-span-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold py-3 px-4 rounded-xl transition duration-200 border border-gray-700 flex items-center justify-center gap-2">
-          <i class="fa-solid fa-arrow-right-from-bracket"></i> Rời phòng
-        </button>
+        <div class="grid grid-cols-2 gap-2 pt-2">
+          <button id="btn-start" onclick="startGroupCall()"
+            class="col-span-2 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-900/20 active:scale-95 flex items-center justify-center gap-2 uppercase text-xs tracking-wider">
+            <i class="fa-solid fa-play"></i> Bắt đầu gọi
+          </button>
+
+          <button id="btn-hangup" onclick="hangup()"
+            class="hidden-view col-span-2 bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-red-900/20 active:scale-95 flex items-center justify-center gap-2 uppercase text-xs tracking-wider">
+            <i class="fa-solid fa-phone-slash"></i> Tắt máy
+          </button>
+
+          <button id="btn-leave" onclick="leaveRoom()"
+            class="col-span-2 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white font-semibold py-2 rounded-xl transition-all border border-gray-700 flex items-center justify-center gap-2 text-xs uppercase">
+            <i class="fa-solid fa-door-open"></i> Rời phòng
+          </button>
+        </div>
       </div>
-
     </div>
   </div>
 
@@ -253,30 +236,53 @@
   <style>
     #video-grid {
       display: grid;
-      /* Khoảng cách giữa các ô video */
       gap: 1rem;
       padding: 1rem;
       width: 100%;
       height: 100%;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-      grid-auto-rows: min-content;
-      align-content: center;
-      justify-content: center;
+      grid-template-columns: repeat(var(--grid-cols, 1), minmax(0, 1fr));
+      grid-auto-rows: auto;
+      justify-items: stretch;
+      align-items: stretch;
+      align-content: start;
       overflow-y: auto;
+    }
+
+    /* Ensure every video tile has the same size/aspect ratio */
+    .video-tile {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      min-height: 0;
+    }
+
+    #room {
+      overflow-y: auto;
+    }
+
+    @media (min-width: 768px) {
+      #room {
+        overflow-y: hidden;
+      }
     }
 
     .video-wrapper {
       position: relative;
       width: 100%;
+      height: auto;
       background: #1a1a1a;
       border-radius: 0.75rem;
       overflow: hidden;
       border: 1px solid #333;
       aspect-ratio: 16 / 9;
       transition: transform 0.2s ease;
+      display: flex;
+      margin: auto;
     }
 
     .video-wrapper video {
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
@@ -403,7 +409,7 @@
   // SIGNAL HANDLER
   // ════════════════════════════════════════════════════════
   async function handleSignal(msg) {
-    const { type, sender, members, offer, answer, candidate, message } = msg;
+    const { type, sender, name, members, offer, answer, candidate, message } = msg;
 
     switch (type) {
       case 'error':
@@ -434,7 +440,7 @@
       }
 
       case 'memberLeft':
-        closePeer(sender);
+        closePeer(name || sender);
         break;
 
       case 'offer':
@@ -545,16 +551,41 @@
     return localStream;
   }
 
+  function updateGridScale() {
+    const grid = document.getElementById('video-grid');
+    if (!grid) return;
+
+    const count = grid.children.length;
+    let cols = 1;
+
+    if (window.innerWidth >= 768) {
+      if (count === 2) cols = 2; // 2 người: cạnh nhau (2x1)
+      else if (count === 3 || count === 4) cols = 2; // 3-4 người: lưới 2x2
+      else if (count >= 5 && count <= 9) cols = 3; // 5-9 người: lưới 3x3
+      else if (count >= 10) cols = 4; // Từ 10 người trở lên: lưới 4x4
+    }
+    else {
+      if (count === 1) cols = 1;
+      else if (count >= 2 && count <= 6) cols = 2; // Ép 2 cột để video không quá nhỏ
+      else if (count >= 7) cols = 3;
+    }
+
+    grid.style.setProperty('--grid-cols', cols);
+  }
+
+  // Bắt sự kiện người dùng xoay điện thoại hoặc thu phóng cửa sổ
+  window.addEventListener('resize', updateGridScale);
+
   function addVideoElement(peerId, label, stream) {
     if (document.getElementById('wrap-' + peerId)) return;
 
     const wrap = document.createElement('div');
     wrap.id = 'wrap-' + peerId;
     // UPDATE UI: Add Tailwind Classes for responsive grid
-    wrap.className = 'w-full h-full relative bg-gray-900 rounded-xl overflow-hidden shadow-lg border border-gray-800 group min-h-[200px] flex items-center justify-center';
+    wrap.className = 'video-tile relative bg-gray-900 rounded-xl overflow-hidden shadow-lg border border-gray-800 group';
 
     wrap.innerHTML = `
-        <video id="vid-${peerId}" class="w-full h-full object-cover" autoplay playsinline ${peerId === 'local' ? 'muted' : ''}></video>
+        <video id="vid-${peerId}" class="absolute inset-0 w-full h-full object-cover" autoplay playsinline ${peerId === 'local' ? 'muted' : ''}></video>
         
         <div class="absolute top-3 left-3 flex gap-2">
           <span id="cand-${peerId}" class="hidden-view"></span>
@@ -577,11 +608,21 @@
     document.getElementById('video-grid').appendChild(wrap);
     const videoEl = document.getElementById('vid-' + peerId);
     videoEl.srcObject = stream;
+
+    // Sync tile state immediately (avoids race: PC becomes connected before DOM exists)
+    if (peerId === 'local') {
+      updateConnState('local', 'connected');
+    } else if (peerConnections.has(peerId)) {
+      updateConnState(peerId, peerConnections.get(peerId).connectionState || 'connecting');
+    }
+
+    updateGridScale();
   }
 
   function removeVideoElement(peerId) {
     const el = document.getElementById('wrap-' + peerId); // UPDATE UI: Remove wrap
     if (el) el.remove();
+    updateGridScale();
   }
 
   function updateConnState(peerId, state) {
@@ -592,6 +633,7 @@
 
     if (!stateContainer || !dotEl || !textEl) return;
     textEl.textContent = state;
+    updateGridScale();
 
     if (state === 'connected') {
       stateContainer.className = 'bg-black/60 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase font-bold px-2 py-1 rounded shadow backdrop-blur flex items-center gap-1.5 absolute top-3 right-3';
@@ -755,7 +797,7 @@
 
     setCallControls(false);
     const badge = document.getElementById('status-badge');
-    if (badge) badge.textContent = '⚪ Chờ';
+    if (badge) badge.textContent = '⚪ Waiting';
 
     return true;
   }
@@ -819,7 +861,7 @@
     if (states.includes('connected')) { badge.textContent = '🟢 Connected'; }
     else if (states.includes('connecting')) { badge.textContent = '🟡 Connecting...'; }
     else if (states.includes('failed')) { badge.textContent = '🔴 Failed'; }
-    else { badge.textContent = '⚪ Chờ'; }
+    else { badge.textContent = '⚪ Waiting'; }
   }
 
   // ════════════════════════════════════════════════════════
