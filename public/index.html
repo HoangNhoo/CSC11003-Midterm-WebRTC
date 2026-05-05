@@ -311,6 +311,9 @@
   let relayModeEnabled = false;
   let signalingQueue = Promise.resolve();
   let currentRoomMembers = []; // THÊM MỚI: Biến lưu danh sách để không phải cạo dữ liệu từ HTML
+  let ensureMeshInProgress = false;
+  let ensureMeshNeedsRerun = false;
+  let ensureMeshForceOfferRequested = false;
 
   const peerConnections = new Map(); // Map<peerName, RTCPeerConnection>
   const pendingCandidates = new Map(); // Map<peerName, RTCIceCandidateInit[]>
@@ -437,7 +440,7 @@
         updateMembersList(members);
         log('roomMembers: ' + members.join(', '), 'info');
         if (isCallActive) {
-          await ensureMeshConnections();
+          await ensureMeshConnections({ forceOffer: true, trigger: 'roomMembers' });
         }
         break;
       }
@@ -458,17 +461,9 @@
           log('answer set for ' + sender, 'info');
           isCallActive = true;
           setCallControls(true);
+          await ensureMeshConnections({ trigger: 'answer' });
         } else {
-          log('answer received but no PC for ' + sender + ', creating...', 'info');
-          const iceServers = await loadIceServers();
-          const pc = new RTCPeerConnection({ iceServers, iceTransportPolicy: relayModeEnabled ? 'relay' : 'all' });
-          await pc.setRemoteDescription(new RTCSessionDescription(answer));
-          const myAnswer = await pc.createAnswer();
-          await pc.setLocalDescription(myAnswer);
-          peerConnections.set(sender, pc);
-          send({ type: 'answer', roomId: myRoom, sender: myName, target: sender, answer: myAnswer });
-          isCallActive = true;
-          setCallControls(true);
+          log('answer received but no local offer/PC for ' + sender + ', ignoring', 'error');
         }
         break;
 
@@ -728,25 +723,53 @@
     setCallControls(true);
     log('=== START GROUP CALL ' + new Date().toLocaleTimeString() + ' ===', 'info');
     await getLocalStream();
-    await ensureMeshConnections();
+    await ensureMeshConnections({ forceOffer: true, trigger: 'startGroupCall' });
   }
 
   function shouldOfferTo(peerName) {
     return myName.localeCompare(peerName) < 0;
   }
 
-  async function ensureMeshConnections() {
+  async function ensureMeshConnections(options = {}) {
+    const { forceOffer = false, trigger = 'unknown' } = options;
+    if (forceOffer) {
+      ensureMeshForceOfferRequested = true;
+    }
+
+    if (ensureMeshInProgress) {
+      ensureMeshNeedsRerun = true;
+      return;
+    }
+
+    ensureMeshInProgress = true;
+    try {
+      do {
+        ensureMeshNeedsRerun = false;
+        const runForceOffer = ensureMeshForceOfferRequested;
+        ensureMeshForceOfferRequested = false;
+        await ensureMeshConnectionsOnce({ forceOffer: runForceOffer, trigger });
+      } while (ensureMeshNeedsRerun);
+    } finally {
+      ensureMeshInProgress = false;
+    }
+  }
+
+  async function ensureMeshConnectionsOnce({ forceOffer = false, trigger = 'unknown' } = {}) {
+    if (!isCallActive) {
+      return;
+    }
+
     const iceServers = await loadIceServers();
     log('ICE servers: ' + JSON.stringify(iceServers), 'info');
     const others = currentRoomMembers.filter(m => m !== myName);
-    log('Will ensure mesh with: ' + others.join(', '), 'info');
+    log('Will ensure mesh with: ' + others.join(', ') + ` [${trigger}]` + (forceOffer ? ' (force offer)' : ''), 'info');
 
     for (const peer of others) {
       if (peerConnections.has(peer)) {
         continue;
       }
 
-      if (!shouldOfferTo(peer)) {
+      if (!forceOffer && !shouldOfferTo(peer)) {
         log('Waiting offer from ' + peer + ' (deterministic offer rule)', 'info');
         continue;
       }
@@ -776,6 +799,7 @@
     await pc.setLocalDescription(answer);
     log('Sending answer to ' + sender, 'send');
     send({ type: 'answer', roomId: myRoom, sender: myName, target: sender, answer });
+    await ensureMeshConnections({ trigger: 'handleOffer' });
   }
 
   // ════════════════════════════════════════════════════════
