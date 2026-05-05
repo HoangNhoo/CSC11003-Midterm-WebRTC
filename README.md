@@ -35,7 +35,7 @@ PORT=3000
 SSL_KEY_PATH=./certs/key.pem
 SSL_CERT_PATH=./certs/cert.pem
 
-TURN_HOST=20.2.88.224
+TURN_HOST=your_turn_ip
 TURN_USERNAME=your_turn_user
 TURN_CREDENTIAL=your_turn_password
 ```
