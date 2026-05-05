@@ -909,12 +909,47 @@
     const stats = await pc.getStats();
     let localCandType = 'unknown';
 
+    // Pick the actually selected candidate pair (otherwise we may grab a random
+    // succeeded pair, which often ends up being host/LAN).
+    let selectedPair = null;
+
+    // 1) Chrome/Edge: transport.selectedCandidatePairId
     stats.forEach(report => {
-      if (report.type === 'candidate-pair' && report.state === 'succeeded') {
-        const local = stats.get(report.localCandidateId);
-        if (local) localCandType = local.candidateType; // host / srflx / relay
+      if (selectedPair) return;
+      if ((report.type === 'transport' || report.type === 'ice-transport') && report.selectedCandidatePairId) {
+        const pair = stats.get(report.selectedCandidatePairId);
+        if (pair && pair.type === 'candidate-pair') {
+          selectedPair = pair;
+        }
       }
     });
+
+    // 2) Fallback: candidate-pair nominated/selected + succeeded
+    if (!selectedPair) {
+      stats.forEach(report => {
+        if (selectedPair) return;
+        if (report.type === 'candidate-pair' && report.state === 'succeeded' && (report.nominated || report.selected)) {
+          selectedPair = report;
+        }
+      });
+    }
+
+    // 3) Last resort: any succeeded pair
+    if (!selectedPair) {
+      stats.forEach(report => {
+        if (selectedPair) return;
+        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+          selectedPair = report;
+        }
+      });
+    }
+
+    if (selectedPair && selectedPair.localCandidateId) {
+      const local = stats.get(selectedPair.localCandidateId);
+      if (local) {
+        localCandType = local.candidateType || local.type || 'unknown';
+      }
+    }
 
     console.log(`[STATS] ${peerName} — candidate type: ${localCandType}`);
 
@@ -925,7 +960,7 @@
       if (localCandType === 'relay') {
         candBadge.textContent = '🔄 TURN/Relay';
         candBadge.className = 'bg-yellow-500/90 text-white text-[10px] uppercase font-bold px-2 py-1 rounded shadow backdrop-blur absolute top-3 left-3';
-      } else if (localCandType === 'srflx') {
+      } else if (localCandType === 'srflx' || localCandType === 'prflx') {
         candBadge.textContent = '🌐 STUN/srflx';
         candBadge.className = 'bg-blue-500/90 text-white text-[10px] uppercase font-bold px-2 py-1 rounded shadow backdrop-blur absolute top-3 left-3';
       } else {
