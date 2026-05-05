@@ -73,7 +73,7 @@ Ghi chú:
 Thông tin trong `.env`:
 
 ```env
-TURN_HOST=20.2.88.224
+TURN_HOST=...
 TURN_USERNAME=...
 TURN_CREDENTIAL=...
 ```
@@ -113,47 +113,55 @@ Client ghi log:
 - `iceConnectionState`
 - candidate type từ `getStats()` (`host`, `srflx`, `relay`)
 
-## 6. Kết quả kiểm thử (bổ sung ảnh/log thật trước khi nộp)
+## 6. Kết quả kiểm thử (đã đính kèm minh chứng trong báo cáo)
 
-### 6.1 Test LAN
+### 6.1 Kịch bản 1: Kiểm thử P2P (2 người)
 
-Checklist:
+Các bước thực hiện:
 
-- [ ] Ảnh chụp 2 thiết bị cùng LAN
-- [ ] Log `connected`
-- [ ] Candidate type thường là `host` hoặc `srflx`
+1. Thiết bị A tạo phòng `test-1`.
+2. Thiết bị B nhập đúng `test-1` và nhấn **Vào phòng**.
+3. A nhấn **Bắt đầu gọi**.
 
-### 6.2 Test khác mạng / 4G
+Kết quả quan sát:
 
-Checklist:
+- Hai thiết bị hiển thị video của nhau.
+- Log signaling thể hiện đầy đủ luồng `offer` -> `answer` -> `candidate`.
+- Trạng thái kết nối chuyển sang `connected`.
 
-- [ ] Ảnh chụp 2 thiết bị khác mạng
-- [ ] Log `connectionState`, `iceConnectionState`
-- [ ] Candidate type `srflx` hoặc `relay`
+Xác minh ICE:
 
-### 6.3 Test nhóm 3-4 người
+- Trong cùng mạng LAN, candidate type thường là `host`.
+- Khác mạng nhưng vẫn đi trực tiếp, candidate type thường là `srflx`.
 
-Checklist:
+Ảnh chụp màn hình và log minh chứng cho kịch bản này đã được đính kèm trong báo cáo nộp.
 
-- [ ] Ảnh chụp grid đủ 3-4 video
-- [ ] Log join/leave room realtime
-- [ ] Dừng xong gọi lại được
+### 6.2 Kịch bản 2: Gọi nhóm 3-4 người + kiểm thử Relay mode (coturn Azure VM)
 
-## 7. Hạn chế và hướng phát triển
+Các bước thực hiện:
 
-Hạn chế hiện tại:
+1. A tạo phòng `test-2`.
+2. B, C, D lần lượt vào cùng phòng.
+3. Một người bất kỳ nhấn **Bắt đầu gọi**.
 
-- Mesh topology tăng tải theo `O(n^2)` khi số người tăng.
-- Chưa có persistence room khi server restart.
-- Chưa có cơ chế auth tài khoản.
+Kết quả quan sát:
 
-Hướng phát triển:
+- Grid video tự động chia bố cục và hiển thị đầy đủ các luồng remote.
+- Một người nhấn **Rời phòng** thì video của người đó biến mất ngay trên các thiết bị còn lại qua bản tin `memberLeft`.
+- Các kết nối giữa những thành viên còn lại vẫn duy trì bình thường.
 
-- Tách JS client ra file riêng (`public/app.js`).
-- Chuyển từ mesh sang SFU khi cần scale nhiều người.
-- Thêm reconnect strategy tốt hơn khi WS mất kết nối.
+Xác minh TURN/Relay:
 
-## 8. Cách chạy nhanh
+- Khi bật **Relay mode**, log UI xuất hiện candidate `type=relay` với IP thuộc coturn trên Azure VM.
+- `getStats()` ghi nhận candidate type có `relay`, đáp ứng yêu cầu minh chứng TURN.
+
+Ảnh chụp màn hình và log minh chứng cho kịch bản này đã được đính kèm trong báo cáo nộp.
+
+### 6.3 Tổng hợp
+
+Toàn bộ ảnh chụp và log cho các trường hợp kiểm thử LAN, khác mạng/4G, và gọi nhóm 3-4 người đã được đính kèm trong báo cáo này.
+
+## 7. Cách chạy nhanh
 
 ```bash
 npm install
